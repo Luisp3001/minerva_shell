@@ -61,7 +61,7 @@ yay -S quickshell-git
 
 ### 3. Clone Repository
 ```bash
-git clone https://github.com/Ronin-CK/HyprQuickFrame ~/.config/quickshell/HyprQuickFrame
+git clone https://github.com/Ronin-CK/HyprQuickFrame ~/.config/minerva_shell/core/HyprQuickFrame
 ```
 
 ### 4. Basic Test
@@ -103,7 +103,7 @@ bind = SUPER SHIFT, S, exec, quickshell -c HyprQuickFrame -n
 You can customize the look and feel by editing `theme.toml`. The application looks for the configuration file in the following order:
 
 1.  `~/.config/hyprquickframe/theme.toml` (Recommended for user customization)
-2.  `~/.config/quickshell/HyprQuickFrame/theme.toml`
+2.  `~/.config/minerva_shell/core/HyprQuickFrame/theme.toml`
 3.  `[Install Directory]/theme.toml` (Default fallback)
 
 Copy the default `theme.toml` to `~/.config/hyprquickframe/theme.toml` and edit it to your liking. New colors are applied instantly!

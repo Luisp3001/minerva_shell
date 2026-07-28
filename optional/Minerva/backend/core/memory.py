@@ -13,7 +13,7 @@ import sys
 
 from .config import HOME
 
-CHROMA_DB_PATH = os.path.join(HOME, ".local", "share", "quickshell", "minerva_tools")
+CHROMA_DB_PATH = os.path.join(HOME, ".local", "share", "minerva_shell", "minerva_tools")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Cliente ChromaDB

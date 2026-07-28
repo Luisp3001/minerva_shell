@@ -62,7 +62,7 @@ Item {
     }
 
     // ── Copy process ─────────────────────────────────────────────────────
-    // Copies plugin folder to ~/.config/quickshell/plugins/<folder-name>/
+    // Copies plugin folder to ~/.config/minerva_shell/plugins/<folder-name>/
     Process {
         id: copyProc
         property string destPath: ""
@@ -110,7 +110,7 @@ Item {
         installState = "installing"
 
         var folderName = sourcePath.split('/').pop()
-        var configDir = Quickshell.env("HOME") + "/.config/quickshell/optional/" + folderName
+        var configDir = Quickshell.env("HOME") + "/.config/minerva_shell/optional/" + folderName
         copyProc.destPath = configDir
         copyProc.command = ["bash", "-c", "mkdir -p '" + configDir + "' && cp -r '" + sourcePath + "/'* '" + configDir + "/'"]
         copyProc.running = true

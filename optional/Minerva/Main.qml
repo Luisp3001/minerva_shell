@@ -108,7 +108,7 @@ Item {
 
     // ── Ruta al backend Python ────────────────────────────────────────────
     readonly property string pluginDir:
-        Quickshell.env("HOME") + "/.config/quickshell/optional/Minerva"
+        Quickshell.env("HOME") + "/.config/minerva_shell/optional/Minerva"
 
     // ── Proceso backend persistente ───────────────────────────────────────
     Process {

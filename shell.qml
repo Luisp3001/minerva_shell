@@ -242,7 +242,7 @@ ShellRoot {
     property var _pendingRecArgs: []
     property int activeWidget: 0
 
-    readonly property string screenRecScript: Quickshell.env("HOME") + "/.config/quickshell/optional/screenrec/wl_screenrec_ctl.sh"
+    readonly property string screenRecScript: Quickshell.env("HOME") + "/.config/minerva_shell/optional/screenrec/wl_screenrec_ctl.sh"
 
     function screenRecRunCtl(action) {
         Quickshell.execDetached(["bash", screenRecScript, action]);
@@ -317,7 +317,7 @@ ShellRoot {
             shell.screenshotActive = true;
         }
         function lockscreen(): void { 
-            Quickshell.execDetached(["qs", "-p", Quickshell.env("HOME") + "/.config/quickshell/components/Lock.qml"]);
+            Quickshell.execDetached(["qs", "-p", Quickshell.env("HOME") + "/.config/minerva_shell/components/Lock.qml"]);
         }
     }
 

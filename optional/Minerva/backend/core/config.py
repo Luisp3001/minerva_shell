@@ -38,7 +38,8 @@ SPOTIFY_SCOPES     = (
 # ─────────────────────────────────────────────────────────────────────────────
 # Voz (STT / TTS)
 # ─────────────────────────────────────────────────────────────────────────────
-VOICE_DIR = os.path.join(HOME, ".config", "quickshell", "optional", "Minerva", "voice")
+PLUGIN_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+VOICE_DIR = os.path.join(PLUGIN_DIR, "voice")
 REF_WAV   = os.path.join(VOICE_DIR, "referencia.wav")
 REF_TXT   = os.path.join(VOICE_DIR, "referencia.txt")
 

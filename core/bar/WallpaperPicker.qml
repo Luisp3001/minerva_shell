@@ -28,7 +28,7 @@ Item {
     }
 
     property var watcherProcess: Process {
-        command: ["bash", Quickshell.env("HOME") + "/.config/quickshell/core/bar/wallpaper_watcher.sh"]
+        command: ["bash", Quickshell.env("HOME") + "/.config/minerva_shell/core/bar/wallpaper_watcher.sh"]
         running: true
     }
 

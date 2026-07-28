@@ -17,7 +17,7 @@ Item {
 
     signal settingChanged(string pluginId, string key, var value)
 
-    readonly property string configDir: Quickshell.env("HOME") + "/.config/quickshell"
+    readonly property string configDir: Quickshell.env("HOME") + "/.config/minerva_shell"
 
     // ── Active plugin tracking ───────────────────────────────────────────
     // Maps plugin id → { component: Component, object: QObject }

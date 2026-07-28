@@ -12,13 +12,16 @@ echo ""
 echo "==> 1. Compilando librerías base del Shell (Caelestia)..."
 echo "    Dependencias del sistema sugeridas: cmake, make, gcc, qt6, libqalculate, pipewire, aubio, cava"
 CAELESTIA_DIR="$DIR/../../shell/plugin"
+ROOT_DIR="$( cd "$DIR/../.." && pwd )"
 if [ -d "$CAELESTIA_DIR" ]; then
     mkdir -p "$CAELESTIA_DIR/build"
     cd "$CAELESTIA_DIR/build"
     cmake ..
     make -j$(nproc)
+    cd "$ROOT_DIR"
+    ln -sfn "shell/plugin/build/qml/Caelestia" "Caelestia"
     cd "$DIR"
-    echo "    Librerías compiladas con éxito."
+    echo "    Librerías compiladas con éxito y enlace simbólico 'Caelestia' creado en la raíz."
 else
     echo "    Advertencia: No se encontró el directorio de Caelestia en $CAELESTIA_DIR"
 fi

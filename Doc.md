@@ -15,7 +15,7 @@ Este proyecto implementa una "Isla Dinámica" interactiva usando **Quickshell**.
 La arquitectura permite que agregues fácilmente nuevos plugins modulares (como el de Spotify, medidores de sistema, clima, etc.) sin tocar el código base.
 
 ### 1. Estructura de archivos
-Un plugin debe vivir en su propia carpeta (por ejemplo en `~/.config/quickshell/optional/mi_plugin/`).
+Un plugin debe vivir en su propia carpeta (por ejemplo en `~/.config/minerva_shell/optional/mi_plugin/`).
 Debe contener obligatoriamente al menos dos archivos:
 - `plugin.json` (Manifiesto)
 - `Main.qml` (Componente visual principal)
@@ -114,7 +114,7 @@ Item {
 ```
 
 ### 4. Menú de Configuración (Opcional)
-Si quieres que tu plugin tenga opciones personalizables desde la interfaz de Quickshell (pestaña de Plugins), puedes definir una propiedad `settingsConfig` en tu `Main.qml`. El sistema generará automáticamente un menú con interruptores y guardará las preferencias del usuario en `~/.config/quickshell/plugin_settings.json`.
+Si quieres que tu plugin tenga opciones personalizables desde la interfaz de Quickshell (pestaña de Plugins), puedes definir una propiedad `settingsConfig` en tu `Main.qml`. El sistema generará automáticamente un menú con interruptores y guardará las preferencias del usuario en `~/.config/minerva_shell/plugin_settings.json`.
 
 ```qml
     // Define las propiedades locales

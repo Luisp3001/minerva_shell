@@ -1,18 +1,10 @@
 {
   "installed": [
     {
-      "id": "com.luisp.airdrop",
-      "path": "optional/airdrop",
+      "id": "com.luisp.minerva",
+      "path": "optional/Minerva",
       "enabled": true,
-      "name": "AirDrop (LocalSend)",
-      "main": "Main.qml",
-      "type": "widget"
-    },
-    {
-      "id": "com.luisp.screenrec",
-      "path": "optional/screenrec",
-      "enabled": true,
-      "name": "Screen Recorder",
+      "name": "Minerva",
       "main": "Main.qml",
       "type": "widget"
     },
@@ -25,9 +17,17 @@
       "type": "widget"
     },
     {
+      "id": "com.luisp.screenrec",
+      "path": "optional/screenrec",
+      "enabled": false,
+      "name": "Screen Recorder",
+      "main": "Main.qml",
+      "type": "widget"
+    },
+    {
       "id": "com.luisp.metrics",
       "path": "optional/metrics",
-      "enabled": false,
+      "enabled": true,
       "name": "System Metrics",
       "main": "Main.qml",
       "type": "widget"
@@ -41,10 +41,10 @@
       "type": "window"
     },
     {
-      "id": "com.luisp.minerva",
-      "path": "optional/Minerva",
+      "id": "com.luisp.airdrop",
+      "path": "optional/airdrop",
       "enabled": true,
-      "name": "Minerva",
+      "name": "AirDrop (LocalSend)",
       "main": "Main.qml",
       "type": "widget"
     }

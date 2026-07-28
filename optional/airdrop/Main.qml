@@ -35,7 +35,7 @@ Item {
     readonly property int expandedHeight: 320
 
     // ── Rutas a los scripts (relativas al plugin dir) ────────────────────
-    readonly property string pluginDir: Quickshell.env("HOME") + "/.config/quickshell/optional/airdrop"
+    readonly property string pluginDir: Quickshell.env("HOME") + "/.config/minerva_shell/optional/airdrop"
 
     ListModel { id: deviceModel }
 

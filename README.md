@@ -42,10 +42,10 @@ Hemos simplificado al máximo el despliegue del ecosistema y de Minerva para que
 
 ```bash
 # 1. Clona el repositorio (si aún no lo tienes)
-git clone https://github.com/Luisp3001/minerva_shell.git ~/.config/quickshell
+git clone https://github.com/Luisp3001/minerva_shell.git ~/.config/minerva_shell
 
 # 2. Navega al directorio del plugin estrella
-cd ~/.config/quickshell/optional/Minerva
+cd ~/.config/minerva_shell/optional/Minerva
 
 # 3. Deja que la magia suceda
 ./install.sh
