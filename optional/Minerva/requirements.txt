@@ -1,0 +1,11 @@
+chromadb
+ddgs
+numpy
+ollama
+piper-tts
+psycopg2-binary
+python-dotenv
+pywhispercpp
+sounddevice
+soundfile
+vosk
