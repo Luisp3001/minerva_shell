@@ -9,19 +9,34 @@ echo "    Instalación rápida de Minerva"
 echo "======================================"
 echo ""
 
-echo "==> 1. Limpiando el entorno virtual actual si existe..."
+echo "==> 1. Compilando librerías base del Shell (Caelestia)..."
+echo "    Dependencias del sistema sugeridas: cmake, make, gcc, qt6, libqalculate, pipewire, aubio, cava"
+CAELESTIA_DIR="$DIR/../../shell/plugin"
+if [ -d "$CAELESTIA_DIR" ]; then
+    mkdir -p "$CAELESTIA_DIR/build"
+    cd "$CAELESTIA_DIR/build"
+    cmake ..
+    make -j$(nproc)
+    cd "$DIR"
+    echo "    Librerías compiladas con éxito."
+else
+    echo "    Advertencia: No se encontró el directorio de Caelestia en $CAELESTIA_DIR"
+fi
+
+echo ""
+echo "==> 2. Limpiando el entorno virtual de Python si existe..."
 rm -rf .venv
 
-echo "==> 2. Creando nuevo entorno virtual..."
+echo "==> 3. Creando nuevo entorno virtual..."
 python3 -m venv .venv
 
-echo "==> 3. Activando entorno e instalando dependencias (esto puede tardar unos segundos)..."
+echo "==> 4. Activando entorno e instalando dependencias de IA..."
 source .venv/bin/activate
 pip install --quiet -U pip
 pip install --quiet -r requirements.txt
 
 echo ""
-echo "==> 4. Verificando e instalando modelos de voz..."
+echo "==> 5. Verificando e instalando modelos de voz..."
 mkdir -p voice
 cd voice
 
@@ -57,7 +72,7 @@ fi
 cd ..
 
 echo ""
-echo "==> 5. Comprobando configuración de .env (Tareas)..."
+echo "==> 6. Comprobando configuración de .env (Tareas)..."
 if [ ! -f "backend/.env" ]; then
     echo "    Creando backend/.env por defecto..."
     cat > backend/.env << 'EOF'
@@ -74,7 +89,7 @@ else
 fi
 
 echo ""
-echo "==> 6. Comprobando configuración de Spotify..."
+echo "==> 7. Comprobando configuración de Spotify..."
 SPOTIFY_DIR="$HOME/.config/spotify_minerva"
 SPOTIFY_CREDS="$SPOTIFY_DIR/credentials.json"
 mkdir -p "$SPOTIFY_DIR"
@@ -98,5 +113,5 @@ echo ""
 echo "=========================================================="
 echo " ¡Instalación completada! Minerva está lista para usarse."
 echo " Recuerda revisar los pasos opcionales (Base de datos y Spotify)."
-echo " Luego, reinicia Quickshell para cargar el plugin de Minerva."
+echo " Luego, reinicia Quickshell para cargar el ecosistema."
 echo "=========================================================="
