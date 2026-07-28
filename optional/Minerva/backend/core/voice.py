@@ -114,22 +114,22 @@ class VoiceManager:
             self.tts_queue.task_done()
 
     def _play_worker(self):
-        is_speaking = False
+        self.is_speaking = False
         _zero_audio = {"type": "audio_data", "source": "tts",
                        "rms": 0, "band0": 0, "band1": 0, "band2": 0, "band3": 0}
         while True:
             item = self.play_queue.get()
             if item is None:
-                if is_speaking:
+                if self.is_speaking:
                     emit({"type": "voice_speaking_stopped"})
                     self.analyzer.reset()
                     emit(_zero_audio)
-                    is_speaking = False
+                    self.is_speaking = False
                 break
 
-            if not is_speaking:
+            if not self.is_speaking:
                 emit({"type": "voice_speaking_started"})
-                is_speaking = True
+                self.is_speaking = True
 
             audio, sample_rate = item
             if not self.tts_stop_event.is_set():
@@ -155,11 +155,11 @@ class VoiceManager:
 
             self.play_queue.task_done()
 
-            if self.play_queue.empty() and is_speaking:
+            if self.play_queue.empty() and self.is_speaking:
                 emit({"type": "voice_speaking_stopped"})
                 self.analyzer.reset()
                 emit(_zero_audio)
-                is_speaking = False
+                self.is_speaking = False
 
     def stop_tts(self):
         if not VOICE_AVAILABLE:
@@ -213,6 +213,10 @@ class VoiceManager:
                     if text.strip():
                         emit({"type": "silence_detected"})
         elif self.vosk_recognizer:
+            if getattr(self, 'is_speaking', False):
+                self.vosk_recognizer.Reset()
+                return
+
             is_final = self.vosk_recognizer.AcceptWaveform(bytes(indata))
             if is_final:
                 res  = json.loads(self.vosk_recognizer.Result())
