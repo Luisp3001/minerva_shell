@@ -65,7 +65,7 @@ Item {
                 let text = data.trim();
                 let parts = text.split('/');
                 let name = parts[parts.length - 1];
-                if (name || name !== "black.jpg") {
+                if (name) {
                     root.targetWallName = name;
                     root.tryFocus();
                 }
@@ -119,13 +119,14 @@ Item {
             let foundIndex = -1;
             for (let i = 0; i < view.count; i++) {
                 let fname = (root.searchQuery !== "" ? filteredModel.get(i).fileName : folderModel.get(i, "fileName"));
-                if (fname === targetWallName || fname === "000_" + targetWallName) {
+                if (fname === targetWallName) {
                     foundIndex = i;
                     break;
                 }
             }
             if (foundIndex !== -1) {
                 view.currentIndex = foundIndex;
+                view.positionViewAtIndex(foundIndex, ListView.Center);
                 initialFocusSet = true;
             }
         }
@@ -146,6 +147,8 @@ Item {
             if (root.shellRoot && root.shellRoot.wallpaperOpen) {
                 view.forceActiveFocus();
                 root.searchFocused = false;
+                root.initialFocusSet = false;
+                root.currentWallProcess.running = true;
             }
         }
     }
@@ -232,6 +235,10 @@ Item {
 
                         onTextChanged: root.searchQuery = text
                         onActiveFocusChanged: root.searchFocused = activeFocus
+
+                        Keys.onEscapePressed: {
+                            view.forceActiveFocus();
+                        }
 
                         Text {
                             anchors.left: parent.left
@@ -323,7 +330,10 @@ Item {
                         root.rebuildFilter();
                         root.tryFocus();
                     }
-                    onCountChanged: root.rebuildFilter()
+                    onCountChanged: {
+                        root.rebuildFilter();
+                        root.tryFocus();
+                    }
                 }
 
                 ListModel { id: filteredModel }

@@ -4,6 +4,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Qt.labs.folderlistmodel
 import "../../style"
 
 Item {
@@ -20,6 +21,185 @@ Item {
     Connections {
         target: root.aiWidget
         function onBackendMessage(msg) { root.handleMsg(msg) }
+    }
+
+    // ── Autocomplete properties ───────────────────────────────────────────
+    property bool showSuggestions: false
+    property string currentSearchDir: ""
+    property string currentSearchFilter: ""
+    property int currentCursorStart: -1
+    property int currentCursorEnd: -1
+    property var pathAliases: ({})
+
+    FolderListModel {
+        id: fileSuggestionModel
+        folder: root.currentSearchDir ? "file://" + root.currentSearchDir : ""
+        showDirsFirst: true
+        onStatusChanged: {
+            if (status === FolderListModel.Ready) root.updateFuzzyList()
+        }
+        onCountChanged: root.updateFuzzyList()
+    }
+
+    ListModel {
+        id: fuzzySuggestionsModel
+    }
+
+    function fuzzyMatch(str, pattern) {
+        if (!pattern) return true
+        pattern = pattern.toLowerCase()
+        str = str.toLowerCase()
+        var patternIdx = 0
+        var strIdx = 0
+        while (patternIdx < pattern.length && strIdx < str.length) {
+            if (pattern[patternIdx] === str[strIdx]) {
+                patternIdx++
+            }
+            strIdx++
+        }
+        return patternIdx === pattern.length
+    }
+
+    function updateFuzzyList() {
+        fuzzySuggestionsModel.clear()
+        if (!root.showSuggestions) return
+        var filter = root.currentSearchFilter
+        var maxResults = 15
+        for (var i = 0; i < fileSuggestionModel.count; i++) {
+            if (fuzzySuggestionsModel.count >= maxResults) break
+            var fileName = fileSuggestionModel.get(i, "fileName")
+            var isDir = fileSuggestionModel.get(i, "fileIsDir")
+            if (fileName === "." || fileName === "..") continue
+            
+            if (filter === "" || fuzzyMatch(fileName, filter)) {
+                fuzzySuggestionsModel.append({
+                    "fileName": fileName,
+                    "isDir": isDir
+                })
+            }
+        }
+        if (fuzzySuggestionsModel.count > 0 && suggestionsList.currentIndex < 0) {
+            suggestionsList.currentIndex = 0
+        }
+    }
+
+    function checkAutocomplete() {
+        var text = inputField.text
+        var cpos = inputField.cursorPosition
+        
+        var start = -1
+        var mode = 0 
+        for (var i = cpos - 1; i >= 0; i--) {
+            if (text[i] === ']' || text[i] === ' ' || text[i] === '\n') {
+                break
+            }
+            if (text[i] === '@') {
+                if (i < text.length - 1 && text[i+1] === '[') {
+                    start = i
+                    mode = 2
+                    break
+                }
+                start = i
+                mode = 1
+                break
+            }
+        }
+
+        if (start !== -1) {
+            var prefixLen = (mode === 2) ? 2 : 1
+            var searchStr = text.substring(start + prefixLen, cpos)
+            
+            var dir = Quickshell.env("HOME")
+            var filter = searchStr
+            
+            if (searchStr.indexOf('/') !== -1) {
+                var lastSlash = searchStr.lastIndexOf('/')
+                var subDir = searchStr.substring(0, lastSlash)
+                if (subDir.startsWith("/")) {
+                    dir = subDir
+                } else if (subDir.startsWith("~")) {
+                    dir = Quickshell.env("HOME") + subDir.substring(1)
+                } else {
+                    dir = Quickshell.env("HOME") + "/" + subDir
+                }
+                filter = searchStr.substring(lastSlash + 1)
+            } else if (searchStr.startsWith("~")) {
+                dir = Quickshell.env("HOME")
+                filter = searchStr.substring(1)
+            } else if (searchStr.startsWith("/")) {
+                dir = "/"
+                filter = searchStr.substring(1)
+            }
+            
+            root.currentSearchDir = dir
+            root.currentSearchFilter = filter
+            root.currentCursorStart = start
+            root.currentCursorEnd = cpos
+            root.showSuggestions = true
+            root.updateFuzzyList()
+        } else {
+            root.showSuggestions = false
+        }
+    }
+
+    function toChipText(str) {
+        var result = "";
+        for (var i = 0; i < str.length; i++) {
+            var code = str.charCodeAt(i);
+            if (code >= 65 && code <= 90) {
+                result += String.fromCodePoint(code + 120211);
+            } else if (code >= 97 && code <= 122) {
+                result += String.fromCodePoint(code + 120205);
+            } else if (code >= 48 && code <= 57) {
+                result += String.fromCodePoint(code + 120764);
+            } else {
+                result += str[i];
+            }
+        }
+        return "󰈔 " + result;
+    }
+
+    function acceptSuggestion(fileName, isDir) {
+        var text = inputField.text
+        var originalSearch = text.substring(root.currentCursorStart, root.currentCursorEnd)
+        var lastSlash = originalSearch.lastIndexOf('/')
+        var pathPrefix = ""
+        if (lastSlash !== -1) {
+            pathPrefix = originalSearch.substring(0, lastSlash + 1)
+            if (!pathPrefix.startsWith("@[")) {
+                pathPrefix = "@[" + pathPrefix.substring(1)
+            }
+        } else {
+            pathPrefix = "@["
+        }
+        
+        var newStr = ""
+        if (isDir) {
+            newStr = pathPrefix + fileName + "/"
+        } else {
+            var cleanDir = root.currentSearchDir
+            if (cleanDir.endsWith("/")) cleanDir = cleanDir.substring(0, cleanDir.length - 1)
+            var fullPath = cleanDir + "/" + fileName
+            
+            var baseAlias = root.toChipText(fileName)
+            var aliasKey = baseAlias
+            var counter = 1
+            while (root.pathAliases[aliasKey] && root.pathAliases[aliasKey] !== "@[" + fullPath + "]") {
+                aliasKey = root.toChipText(fileName + " (" + counter + ")")
+                counter++
+            }
+            
+            root.pathAliases[aliasKey] = "@[" + fullPath + "]"
+            newStr = aliasKey + " "
+        }
+        
+        var before = text.substring(0, root.currentCursorStart)
+        var after = text.substring(root.currentCursorEnd)
+        inputField.text = before + newStr + after
+        inputField.cursorPosition = (before + newStr).length
+        if (!isDir) {
+            root.showSuggestions = false
+        }
     }
 
     // ── Manejadores de mensajes ───────────────────────────────────────────
@@ -175,6 +355,11 @@ Item {
 
         inputField.text = ""
         aiWidget.currentUserMsg = text
+        
+        var textToSend = text
+        for (var key in root.pathAliases) {
+            textToSend = textToSend.split(key).join(root.pathAliases[key])
+        }
 
         // Añadir burbuja de usuario
         aiWidget.msgModel.append({
@@ -184,12 +369,13 @@ Item {
         scrollToBottom()
 
         // Enviar al backend (historial sin el mensaje actual; backend lo añade)
-        root.aiWidget.sendChat(text, aiWidget.conversationHistory.slice())
+        root.aiWidget.sendChat(textToSend, aiWidget.conversationHistory.slice())
     }
 
     function clearChat() {
         aiWidget.msgModel.clear()
         aiWidget.conversationHistory = []
+        root.pathAliases = ({})
         aiWidget.currentUserMsg  = ""
         aiWidget.streamingIdx    = -1
         aiWidget.streamingRaw    = ""
@@ -695,9 +881,67 @@ Item {
                             anchors { left: parent.left; verticalCenter: parent.verticalCenter }
                         }
 
-                        Keys.onReturnPressed: function(e) {
-                            if (!(e.modifiers & Qt.ShiftModifier))
-                                root.sendMessage()
+                        onCursorPositionChanged: root.checkAutocomplete()
+                        onTextChanged: root.checkAutocomplete()
+
+                        Keys.onPressed: function(e) {
+                            if (root.showSuggestions && fuzzySuggestionsModel.count > 0) {
+                                if (e.key === Qt.Key_Up) {
+                                    suggestionsList.currentIndex = Math.max(0, suggestionsList.currentIndex - 1)
+                                    e.accepted = true
+                                    return
+                                }
+                                if (e.key === Qt.Key_Down) {
+                                    suggestionsList.currentIndex = Math.min(fuzzySuggestionsModel.count - 1, suggestionsList.currentIndex + 1)
+                                    e.accepted = true
+                                    return
+                                }
+                                if (e.key === Qt.Key_Tab || e.key === Qt.Key_Return) {
+                                    var item = fuzzySuggestionsModel.get(suggestionsList.currentIndex)
+                                    if (item) {
+                                        root.acceptSuggestion(item.fileName, item.isDir)
+                                        e.accepted = true
+                                        return
+                                    }
+                                }
+                                if (e.key === Qt.Key_Escape) {
+                                    root.showSuggestions = false
+                                    e.accepted = true
+                                    return
+                                }
+                            }
+                            // Delete whole chip (alias) if Backspace or Delete touches it
+                            if (e.key === Qt.Key_Backspace || e.key === Qt.Key_Delete) {
+                                var txt = inputField.text
+                                var cpos = inputField.cursorPosition
+                                for (var key in root.pathAliases) {
+                                    var idx = 0
+                                    while ((idx = txt.indexOf(key, idx)) !== -1) {
+                                        var start = idx
+                                        var end = idx + key.length
+                                        if (e.key === Qt.Key_Backspace && cpos > start && cpos <= end) {
+                                            inputField.text = txt.substring(0, start) + txt.substring(end)
+                                            inputField.cursorPosition = start
+                                            e.accepted = true
+                                            return
+                                        }
+                                        if (e.key === Qt.Key_Delete && cpos >= start && cpos < end) {
+                                            inputField.text = txt.substring(0, start) + txt.substring(end)
+                                            inputField.cursorPosition = start
+                                            e.accepted = true
+                                            return
+                                        }
+                                        idx = end
+                                    }
+                                }
+                            }
+                            
+                            if (e.key === Qt.Key_Return) {
+                                if (!(e.modifiers & Qt.ShiftModifier)) {
+                                    root.sendMessage()
+                                    e.accepted = true
+                                }
+                            }
                         }
                     }
                 }
@@ -772,6 +1016,72 @@ Item {
                         enabled: !(root.aiWidget && (root.aiWidget.isThinking || root.aiWidget.isRecording))
                         onClicked: root.sendMessage()
                     }
+                }
+            }
+        }
+    }
+
+    // ── Autocomplete Overlay ──────────────────────────────────────────────
+    Rectangle {
+        id: suggestionsPopup
+        visible: root.showSuggestions && fuzzySuggestionsModel.count > 0
+        width: 320
+        height: Math.min(fuzzySuggestionsModel.count * 34 + 12, 220)
+        
+        anchors.left: parent.left
+        anchors.leftMargin: 20
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 60
+
+        radius: 12
+        color: Qt.rgba(0.08, 0.08, 0.12, 0.95)
+        border.width: 1
+        border.color: Qt.rgba(Theme.accent.r, Theme.accent.g, Theme.accent.b, 0.5)
+
+        layer.enabled: true
+
+        ListView {
+            id: suggestionsList
+            anchors.fill: parent
+            anchors.margins: 6
+            model: fuzzySuggestionsModel
+            clip: true
+            spacing: 2
+            
+            delegate: Rectangle {
+                width: ListView.view.width
+                height: 32
+                color: ListView.isCurrentItem ? Qt.rgba(1, 1, 1, 0.1) : (maSuggestion.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
+                radius: 8
+                
+                Row {
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    spacing: 10
+                    Text {
+                        text: model.isDir ? "󰉋" : "󰈔"
+                        font.family: Theme.fontMono
+                        font.pixelSize: 14
+                        color: model.isDir ? Theme.accent : Theme.textMuted
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Text {
+                        text: model.fileName
+                        font.family: Theme.fontSans
+                        font.pixelSize: 13
+                        color: Theme.textPrimary
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+                
+                MouseArea {
+                    id: maSuggestion
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    onClicked: {
+                        root.acceptSuggestion(model.fileName, model.isDir)
+                    }
+                    onEntered: suggestionsList.currentIndex = index
                 }
             }
         }

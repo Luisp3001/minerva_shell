@@ -54,3 +54,37 @@ cd ~/.config/minerva_shell/optional/Minerva
 El script de instalación se encargará de purgar viejos entornos, instalar exactamente el ecosistema minimalista de dependencias, descargar y ubicar los modelos pesados de IA (Vosk y Piper), y generar las plantillas para tu conexión con bases de datos y Spotify.
 
 *Simplemente recarga Quickshell y Minerva despertará.*
+
+---
+
+## ⌨️ Configuración de Keybinds en Hyprland (IPC)
+
+Para invocar los paneles y herramientas del shell mediante atajos de teclado, debes mapear los eventos IPC expuestos en [`shell.qml`](./shell.qml) dentro de tu configuración de Hyprland (`~/.config/hypr/hyprland.conf`):
+
+```ini
+# Lanzador de aplicaciones
+bind = $mainMod, SUPER_L, exec, quickshell ipc call shell toggleLauncher
+
+# Selector de fondos de pantalla
+bind = $mainMod, W, exec, quickshell ipc call shell toggleWallpaper
+
+# Herramienta de captura de pantalla (HyprQuickFrame)
+bind = $mainMod SHIFT, S, exec, quickshell ipc call shell launchScreenshot
+
+# Bloqueo de pantalla (Lockscreen)
+bind = $mainMod, L, exec, quickshell ipc call shell lockscreen
+
+# Centro de Notificaciones (Opcional)
+bind = $mainMod, N, exec, quickshell ipc call shell toggleNotif
+```
+
+---
+
+## 🎨 Selector de Wallpapers & Tagging de IA
+
+El selector de fondos de pantalla ([`core/bar/WallpaperPicker.qml`](./core/bar/WallpaperPicker.qml)) cuenta con un sistema inteligente de organización:
+
+- **Indexación y Tagging con IA**: Un proceso en segundo plano analiza automáticamente las imágenes guardadas en `~/wallpaper` y les asigna etiquetas descriptivas (estilo, colores, objetos, atmósfera) que se almacenan en `~/.cache/wallpaper/tags.json`.
+- **Estado de Indexación**: Al añadir nuevos fondos, el panel muestra un indicador activo de **"Generando tags..."** mientras la IA procesa la biblioteca.
+- **Búsqueda por Etiquetas**: Puedes presionar `Ctrl+F` dentro del selector o usar la barra de búsqueda para filtrar al instante tus fondos mediante etiquetas o nombres de archivo.
+
