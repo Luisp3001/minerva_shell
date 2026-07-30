@@ -138,7 +138,7 @@ def tool_read_file(path: str, start_line: int = 1, end_line: int = None) -> str:
         return f"Error leyendo archivo: {e}"
 
 
-def tool_read_pdf(path: str) -> str:
+def _read_with_markitdown(path: str, file_type: str) -> str:
     exp = str(pathlib.Path(path).expanduser())
     if not is_safe_path(exp):
         return f"Acceso denegado: solo se permite dentro de {HOME}"
@@ -146,34 +146,33 @@ def tool_read_pdf(path: str) -> str:
         p = pathlib.Path(exp)
         if not p.exists() or not p.is_file():
             return f"Archivo inválido o no existe: {exp}"
-        r = subprocess.run(["pdftotext", exp, "-"], capture_output=True, text=True, timeout=10)
-        text = r.stdout
-        if r.returncode != 0:
-            return f"Error extrayendo PDF: {r.stderr}"
-        if len(text) > MAX_FILE:
+        
+        from markitdown import MarkItDown
+        md = MarkItDown()
+        result = md.convert(exp)
+        text = result.text_content
+        
+        if text and len(text) > MAX_FILE:
             text = text[:MAX_FILE] + f"\n\n[... truncado: mostrando {MAX_FILE} de {len(text)} bytes ...]"
-        return text
+        return text if text else f"[El archivo {file_type} está vacío o no se pudo extraer texto]"
     except Exception as e:
-        return f"Error leyendo PDF: {e}"
+        return f"Error leyendo {file_type}: {e}"
+
+
+def tool_read_pdf(path: str) -> str:
+    return _read_with_markitdown(path, "PDF")
 
 
 def tool_read_docx(path: str) -> str:
-    exp = str(pathlib.Path(path).expanduser())
-    if not is_safe_path(exp):
-        return f"Acceso denegado: solo se permite dentro de {HOME}"
-    try:
-        p = pathlib.Path(exp)
-        if not p.exists() or not p.is_file():
-            return f"Archivo inválido o no existe: {exp}"
-        r = subprocess.run(["pandoc", "-f", "docx", "-t", "markdown", exp], capture_output=True, text=True, timeout=10)
-        text = r.stdout
-        if r.returncode != 0:
-            return f"Error extrayendo DOCX: {r.stderr}"
-        if len(text) > MAX_FILE:
-            text = text[:MAX_FILE] + f"\n\n[... truncado: mostrando {MAX_FILE} de {len(text)} bytes ...]"
-        return text
-    except Exception as e:
-        return f"Error leyendo DOCX: {e}"
+    return _read_with_markitdown(path, "DOCX")
+
+
+def tool_read_pptx(path: str) -> str:
+    return _read_with_markitdown(path, "PPTX")
+
+
+def tool_read_excel(path: str) -> str:
+    return _read_with_markitdown(path, "EXCEL/CSV")
 
 
 def tool_write_file(path: str, content: str, overwrite: bool = False) -> str:

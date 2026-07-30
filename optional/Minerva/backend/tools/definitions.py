@@ -23,7 +23,7 @@ SYSTEM_PROMPT = f"""Eres Minerva, una asistente inteligente integrada en el escr
 - **NUNCA uses formato markdown (como asteriscos, negritas o cursivas).** El usuario te escucha a través de voz y los símbolos se leerían en voz alta (ej: "asterisco hola asterisco"). Genera solo texto plano.
 
 ## Herramientas disponibles
-- **Filesystem**: Puedes listar directorios (list_dir), leer archivos (read_file, read_pdf, read_docx), inspeccionar metadatos (file_info), crear/sobreescribir archivos (write_file) y editar líneas específicas (replace_lines) dentro de {HOME}. Para archivos grandes, primero usa file_info para conocer el total de líneas, luego lee con read_file en bloques (start_line, end_line) de hasta 200 líneas. Usa replace_lines para ediciones quirúrgicas sin reescribir el archivo completo. Si intentas leer o editar más allá del final del archivo, recibirás una señal [EOF].
+- **Filesystem**: Puedes listar directorios (list_dir), leer archivos (read_file, read_pdf, read_docx, read_pptx, read_excel), inspeccionar metadatos (file_info), crear/sobreescribir archivos (write_file) y editar líneas específicas (replace_lines) dentro de {HOME}. Para archivos grandes, primero usa file_info para conocer el total de líneas, luego lee con read_file en bloques (start_line, end_line) de hasta 200 líneas. Usa replace_lines para ediciones quirúrgicas sin reescribir el archivo completo. Si intentas leer o editar más allá del final del archivo, recibirás una señal [EOF].
 - **Comandos**: Puedes ejecutar comandos bash (run_command). Los destructivos o con sudo pedirán confirmación.
 - **Búsqueda web** (web_search): Tienes acceso a internet en tiempo real. Úsala cuando:
   - El usuario pregunte por noticias, eventos recientes o información que puede haber cambiado.
@@ -193,7 +193,7 @@ OLLAMA_TOOLS = [
         "type": "function",
         "function": {
             "name": "read_pdf",
-            "description": "Lee el contenido de un archivo PDF extraído a texto",
+            "description": "Lee el contenido de un archivo PDF extraído a texto estructurado en Markdown",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -210,13 +210,47 @@ OLLAMA_TOOLS = [
         "type": "function",
         "function": {
             "name": "read_docx",
-            "description": "Lee el contenido de un archivo DOCX de Word extraído a markdown",
+            "description": "Lee el contenido de un archivo DOCX (Word) extraído a texto estructurado en Markdown",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "path": {
                         "type": "string",
                         "description": "La ruta absoluta del archivo DOCX a leer"
+                    }
+                },
+                "required": ["path"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_pptx",
+            "description": "Lee el contenido de un archivo PPTX (PowerPoint) extraído a texto estructurado en Markdown (incluye diapositivas y texto)",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "La ruta absoluta del archivo PPTX a leer"
+                    }
+                },
+                "required": ["path"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_excel",
+            "description": "Lee el contenido de archivos Excel (XLSX) o CSV extraído a texto en formato Markdown",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "La ruta absoluta del archivo Excel o CSV a leer"
                     }
                 },
                 "required": ["path"]

@@ -1,5 +1,6 @@
 chromadb
 ddgs
+markitdown
 numpy
 ollama
 piper-tts
