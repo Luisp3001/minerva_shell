@@ -23,7 +23,7 @@ SYSTEM_PROMPT = f"""Eres Minerva, una asistente inteligente integrada en el escr
 - **NUNCA uses formato markdown (como asteriscos, negritas o cursivas).** El usuario te escucha a través de voz y los símbolos se leerían en voz alta (ej: "asterisco hola asterisco"). Genera solo texto plano.
 
 ## Herramientas disponibles
-- **Filesystem**: Puedes listar directorios (list_dir) y leer archivos (read_file, read_pdf, read_docx) dentro de {HOME}.
+- **Filesystem**: Puedes listar directorios (list_dir), leer archivos (read_file, read_pdf, read_docx), inspeccionar metadatos (file_info), crear/sobreescribir archivos (write_file) y editar líneas específicas (replace_lines) dentro de {HOME}. Para archivos grandes, primero usa file_info para conocer el total de líneas, luego lee con read_file en bloques (start_line, end_line) de hasta 200 líneas. Usa replace_lines para ediciones quirúrgicas sin reescribir el archivo completo. Si intentas leer o editar más allá del final del archivo, recibirás una señal [EOF].
 - **Comandos**: Puedes ejecutar comandos bash (run_command). Los destructivos o con sudo pedirán confirmación.
 - **Búsqueda web** (web_search): Tienes acceso a internet en tiempo real. Úsala cuando:
   - El usuario pregunte por noticias, eventos recientes o información que puede haber cambiado.
@@ -97,16 +97,95 @@ OLLAMA_TOOLS = [
         "type": "function",
         "function": {
             "name": "read_file",
-            "description": "Lee el contenido de texto de un archivo en el sistema",
+            "description": "Lee el contenido de texto de un archivo en el sistema por rangos de líneas. Por defecto lee las primeras 200 líneas. Para archivos grandes, usa file_info primero para conocer el total de líneas y luego llama a read_file con start_line y end_line para leer en chunks. Si start_line supera el total de líneas, retorna [EOF].",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "path": {
                         "type": "string",
                         "description": "La ruta absoluta del archivo a leer"
+                    },
+                    "start_line": {
+                        "type": "integer",
+                        "description": "Línea inicial a leer (1-indexado). Por defecto 1."
+                    },
+                    "end_line": {
+                        "type": "integer",
+                        "description": "Última línea a leer (1-indexado, inclusivo). Por defecto start_line + 199 (chunk de 200 líneas)."
                     }
                 },
                 "required": ["path"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "file_info",
+            "description": "Devuelve metadatos de un archivo: total de líneas y tamaño en disco. Úsala antes de read_file cuando el archivo pueda ser grande, para saber cuántas líneas tiene y decidir qué rango pedir.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "La ruta absoluta del archivo a inspeccionar"
+                    }
+                },
+                "required": ["path"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "write_file",
+            "description": "Crea un archivo nuevo o sobreescribe uno existente con el contenido proporcionado. Usa esta herramienta en lugar de 'echo' o redirecciones de shell para crear archivos. Por defecto falla si el archivo ya existe para evitar sobreescrituras accidentales; pasa overwrite=true para sobreescribir intencionalmente.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Ruta absoluta del archivo a crear o sobreescribir"
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Contenido completo a escribir en el archivo"
+                    },
+                    "overwrite": {
+                        "type": "boolean",
+                        "description": "Si true, sobreescribe el archivo si ya existe. Por defecto false."
+                    }
+                },
+                "required": ["path", "content"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "replace_lines",
+            "description": "Reemplaza un rango de líneas específicas en un archivo existente sin tocar el resto. Equivalente a un patch quirúrgico. Ideal para editar funciones, corregir errores o modificar configuraciones sin reescribir el archivo completo. Usará el número de línea exacto que viste con read_file.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Ruta absoluta del archivo a modificar"
+                    },
+                    "start_line": {
+                        "type": "integer",
+                        "description": "Primera línea a reemplazar (1-indexado, inclusivo)"
+                    },
+                    "end_line": {
+                        "type": "integer",
+                        "description": "Última línea a reemplazar (1-indexado, inclusivo)"
+                    },
+                    "new_content": {
+                        "type": "string",
+                        "description": "Texto de reemplazo. Puede contener múltiples líneas separadas por \\n."
+                    }
+                },
+                "required": ["path", "start_line", "end_line", "new_content"]
             }
         }
     },

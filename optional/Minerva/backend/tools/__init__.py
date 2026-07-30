@@ -13,7 +13,10 @@ import re
 import sys
 
 from .definitions   import OLLAMA_TOOLS, SYSTEM_PROMPT  # noqa: F401
-from .filesystem    import tool_list_dir, tool_read_file, tool_read_pdf, tool_read_docx
+from .filesystem    import (
+    tool_list_dir, tool_read_file, tool_read_pdf, tool_read_docx,
+    tool_file_info, tool_write_file, tool_replace_lines
+)
 from .system        import tool_web_search, tool_launch_app
 from .spotify       import tool_spotify_music
 from .memory_tool   import tool_memorize_fact
@@ -90,7 +93,29 @@ def dispatch_tool(tool_name: str, args: dict, tool_call_id: str = "") -> "str | 
         return tool_list_dir(args.get("path", HOME))
 
     elif tool_name == "read_file":
-        return tool_read_file(args.get("path", ""))
+        return tool_read_file(
+            args.get("path", ""),
+            start_line=args.get("start_line", 1),
+            end_line=args.get("end_line", None),
+        )
+
+    elif tool_name == "file_info":
+        return tool_file_info(args.get("path", ""))
+
+    elif tool_name == "write_file":
+        return tool_write_file(
+            path      = args.get("path", ""),
+            content   = args.get("content", ""),
+            overwrite = bool(args.get("overwrite", False)),
+        )
+
+    elif tool_name == "replace_lines":
+        return tool_replace_lines(
+            path        = args.get("path", ""),
+            start_line  = args.get("start_line", 1),
+            end_line    = args.get("end_line", 1),
+            new_content = args.get("new_content", ""),
+        )
 
     elif tool_name == "read_pdf":
         return tool_read_pdf(args.get("path", ""))
