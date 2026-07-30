@@ -2,9 +2,13 @@ Caelestia
 shell/plugin/build
 optional/Minerva/.venv
 optional/Minerva/voice
-optional/Minerva/backend/__pycache__
-optional/Minerva/backend/core/__pycache__
-optional/Minerva/backend/tools/__pycache__
+__pycache__/
+*.pyc
+*.pyo
+
+optional/Minerva/.venv
+optional/Minerva/voice
 optional/Minerva/backend/.env
 plugin_settings.json
+
 
