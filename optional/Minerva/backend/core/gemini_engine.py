@@ -106,7 +106,7 @@ def do_chat_gemini(
         (m.get("content", "") for m in reversed(history) if m.get("role") == "user"),
         ""
     )
-    dynamic_tools = get_relevant_tools(user_prompt, top_k=15) if user_prompt else OLLAMA_TOOLS
+    dynamic_tools = get_relevant_tools(user_prompt, top_k=10) if user_prompt else OLLAMA_TOOLS
 
     # Claves válidas para la API OpenAI-compatible de Gemini
     _valid_keys = {"role", "content", "tool_calls", "tool_call_id", "name"}

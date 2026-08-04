@@ -142,7 +142,7 @@ Item {
         }
     }
 
-    function toChipText(str) {
+    function toChipText(str, isDir) {
         var result = "";
         for (var i = 0; i < str.length; i++) {
             var code = str.charCodeAt(i);
@@ -156,7 +156,8 @@ Item {
                 result += str[i];
             }
         }
-        return "󰈔 " + result;
+        var icon = isDir ? "󰉋 " : "󰈔 ";
+        return icon + result;
     }
 
     function acceptSuggestion(fileName, isDir) {
@@ -181,11 +182,11 @@ Item {
             if (cleanDir.endsWith("/")) cleanDir = cleanDir.substring(0, cleanDir.length - 1)
             var fullPath = cleanDir + "/" + fileName
             
-            var baseAlias = root.toChipText(fileName)
+            var baseAlias = root.toChipText(fileName, false)
             var aliasKey = baseAlias
             var counter = 1
             while (root.pathAliases[aliasKey] && root.pathAliases[aliasKey] !== "@[" + fullPath + "]") {
-                aliasKey = root.toChipText(fileName + " (" + counter + ")")
+                aliasKey = root.toChipText(fileName + " (" + counter + ")", false)
                 counter++
             }
             
@@ -932,6 +933,57 @@ Item {
                                             return
                                         }
                                         idx = end
+                                    }
+                                }
+                            }
+                            
+                            // Convert typed directory to chip when space is pressed
+                            if (e.key === Qt.Key_Space) {
+                                var currentTxt = inputField.text
+                                var currentCpos = inputField.cursorPosition
+                                var lastAt = currentTxt.lastIndexOf("@[", currentCpos - 1)
+                                if (lastAt !== -1 && currentTxt.substring(currentCpos - 1, currentCpos) === "/") {
+                                    var possibleDir = currentTxt.substring(lastAt, currentCpos)
+                                    if (possibleDir.indexOf(" ") === -1) {
+                                        var rawPath = possibleDir.substring(2)
+                                        var fullPath = ""
+                                        if (rawPath.startsWith("/")) {
+                                            fullPath = rawPath
+                                        } else if (rawPath.startsWith("~")) {
+                                            fullPath = Quickshell.env("HOME") + rawPath.substring(1)
+                                        } else {
+                                            fullPath = Quickshell.env("HOME") + "/" + rawPath
+                                        }
+                                        
+                                        if (fullPath.length > 1 && fullPath.endsWith("/")) {
+                                            fullPath = fullPath.substring(0, fullPath.length - 1)
+                                        }
+                                        
+                                        var folderName = fullPath
+                                        var lastSlash = fullPath.lastIndexOf('/')
+                                        if (lastSlash !== -1 && lastSlash < fullPath.length - 1) {
+                                            folderName = fullPath.substring(lastSlash + 1)
+                                        } else if (fullPath === "/") {
+                                            folderName = "root"
+                                        }
+                                        
+                                        var dirAliasKey = root.toChipText(folderName, true)
+                                        var dirCounter = 1
+                                        while (root.pathAliases[dirAliasKey] && root.pathAliases[dirAliasKey] !== "@[" + fullPath + "]") {
+                                            dirAliasKey = root.toChipText(folderName + " (" + dirCounter + ")", true)
+                                            dirCounter++
+                                        }
+                                        
+                                        root.pathAliases[dirAliasKey] = "@[" + fullPath + "]"
+                                        
+                                        var dirBefore = currentTxt.substring(0, lastAt)
+                                        var dirAfter = currentTxt.substring(currentCpos)
+                                        
+                                        inputField.text = dirBefore + dirAliasKey + " " + dirAfter
+                                        inputField.cursorPosition = (dirBefore + dirAliasKey + " ").length
+                                        root.showSuggestions = false
+                                        e.accepted = true
+                                        return
                                     }
                                 }
                             }
