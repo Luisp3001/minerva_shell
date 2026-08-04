@@ -28,25 +28,39 @@ Item {
     property string aiNumCtx: "8192"
     property bool   aiThinking: false
 
+    // ── Configuración de TTS ──────────────────────────────────────────────
+    property string ttsProvider:  "piper"   // "piper" (local) | "fish" (Fish Audio API)
+    property string fishApiKey:   ""
+    property string fishVoiceId:  "15e8b140868348538ab2d7d887060e78"
+    property string fishModel:    "s2-pro"  // speech-1.5 | speech-1.6 | s2-pro | s1 | s1-mini | agent-x0
+
     property var settingsConfig: [
-        { id: "aiProvider", name: "Proveedor de IA (Ollama / Gemini)", type: "string", defaultValue: "Ollama" },
-        { id: "geminiApiKey", name: "API Key de Gemini", type: "string", defaultValue: "" },
-        { id: "geminiModel", name: "Modelo de Gemini", type: "string", defaultValue: "gemini-2.5-flash" },
-        { id: "aiModel", name: "Modelo de Ollama", type: "string", defaultValue: "qwen3.5:9b" },
-        { id: "aiTemperature", name: "Temperatura (0.0 - 1.0)", type: "string", defaultValue: "0.7" },
-        { id: "aiNumCtx", name: "Contexto (num_ctx)", type: "string", defaultValue: "8192" },
-        { id: "aiThinking", name: "Activar razonamiento (Thinking)", type: "bool", defaultValue: false }
+        { id: "aiProvider",  name: "Proveedor de IA (Ollama / Gemini)",   type: "string", defaultValue: "Ollama" },
+        { id: "geminiApiKey", name: "API Key de Gemini",                   type: "string", defaultValue: "" },
+        { id: "geminiModel", name: "Modelo de Gemini",                    type: "string", defaultValue: "gemini-2.5-flash" },
+        { id: "aiModel",     name: "Modelo de Ollama",                    type: "string", defaultValue: "qwen3.5:9b" },
+        { id: "aiTemperature", name: "Temperatura (0.0 - 1.0)",          type: "string", defaultValue: "0.7" },
+        { id: "aiNumCtx",    name: "Contexto (num_ctx)",                  type: "string", defaultValue: "8192" },
+        { id: "aiThinking",  name: "Activar razonamiento (Thinking)",     type: "bool",   defaultValue: false },
+        { id: "ttsProvider", name: "Proveedor TTS (piper / fish)",        type: "string", defaultValue: "piper" },
+        { id: "fishApiKey",  name: "API Key de Fish Audio",               type: "string", defaultValue: "" },
+        { id: "fishVoiceId", name: "Voice ID de Fish Audio (reference_id)", type: "string", defaultValue: "15e8b140868348538ab2d7d887060e78" },
+        { id: "fishModel",   name: "Modelo Fish Audio (speech-1.5 / speech-1.6 / s2-pro / s1 / s1-mini / agent-x0)", type: "string", defaultValue: "s2-pro" }
     ]
 
     Component.onCompleted: {
         if (parent && parent.getSetting) {
-            aiProvider = parent.getSetting(pluginId, "aiProvider", "Ollama")
-            geminiApiKey = parent.getSetting(pluginId, "geminiApiKey", "")
-            geminiModel = parent.getSetting(pluginId, "geminiModel", "gemini-2.5-flash")
-            aiModel = parent.getSetting(pluginId, "aiModel", "qwen3.5:9b")
+            aiProvider    = parent.getSetting(pluginId, "aiProvider",    "Ollama")
+            geminiApiKey  = parent.getSetting(pluginId, "geminiApiKey",  "")
+            geminiModel   = parent.getSetting(pluginId, "geminiModel",   "gemini-2.5-flash")
+            aiModel       = parent.getSetting(pluginId, "aiModel",       "qwen3.5:9b")
             aiTemperature = parent.getSetting(pluginId, "aiTemperature", "0.7")
-            aiNumCtx = parent.getSetting(pluginId, "aiNumCtx", "8192")
-            aiThinking = parent.getSetting(pluginId, "aiThinking", false)
+            aiNumCtx      = parent.getSetting(pluginId, "aiNumCtx",      "8192")
+            aiThinking    = parent.getSetting(pluginId, "aiThinking",    false)
+            ttsProvider   = parent.getSetting(pluginId, "ttsProvider",   "piper")
+            fishApiKey    = parent.getSetting(pluginId, "fishApiKey",    "")
+            fishVoiceId   = parent.getSetting(pluginId, "fishVoiceId",   "15e8b140868348538ab2d7d887060e78")
+            fishModel     = parent.getSetting(pluginId, "fishModel",     "s2-pro")
         }
     }
 
@@ -54,13 +68,17 @@ Item {
         target: widget.parent && widget.parent.settingChanged ? widget.parent : null
         function onSettingChanged(id, key, value) {
             if (id === widget.pluginId) {
-                if (key === "aiProvider") widget.aiProvider = value
-                else if (key === "geminiApiKey") widget.geminiApiKey = value
-                else if (key === "geminiModel") widget.geminiModel = value
-                else if (key === "aiModel") widget.aiModel = value
+                if      (key === "aiProvider")    widget.aiProvider    = value
+                else if (key === "geminiApiKey")  widget.geminiApiKey  = value
+                else if (key === "geminiModel")   widget.geminiModel   = value
+                else if (key === "aiModel")       widget.aiModel       = value
                 else if (key === "aiTemperature") widget.aiTemperature = value
-                else if (key === "aiNumCtx") widget.aiNumCtx = value
-                else if (key === "aiThinking") widget.aiThinking = value
+                else if (key === "aiNumCtx")      widget.aiNumCtx      = value
+                else if (key === "aiThinking")    widget.aiThinking    = value
+                else if (key === "ttsProvider")   widget.ttsProvider   = value
+                else if (key === "fishApiKey")    widget.fishApiKey    = value
+                else if (key === "fishVoiceId")   widget.fishVoiceId   = value
+                else if (key === "fishModel")     widget.fishModel     = value
             }
         }
     }
@@ -358,13 +376,17 @@ Item {
             history: history,
             image: widget.pendingImage,
             settings: {
-                provider: widget.aiProvider,
+                provider:       widget.aiProvider,
                 gemini_api_key: widget.geminiApiKey,
-                gemini_model: widget.geminiModel,
-                model: widget.aiModel,
-                temperature: widget.aiTemperature,
-                num_ctx: widget.aiNumCtx,
-                thinking: widget.aiThinking
+                gemini_model:   widget.geminiModel,
+                model:          widget.aiModel,
+                temperature:    widget.aiTemperature,
+                num_ctx:        widget.aiNumCtx,
+                thinking:       widget.aiThinking,
+                tts_provider:   widget.ttsProvider,
+                fish_api_key:   widget.fishApiKey,
+                fish_voice_id:  widget.fishVoiceId,
+                fish_model:     widget.fishModel
             }
         })
         widget.pendingImage = ""

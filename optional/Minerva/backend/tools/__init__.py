@@ -12,7 +12,7 @@ Expone:
 import re
 import sys
 
-from .definitions   import OLLAMA_TOOLS, SYSTEM_PROMPT  # noqa: F401
+from .definitions   import OLLAMA_TOOLS, SYSTEM_PROMPT, FISH_AUDIO_EMOTION_PROMPT  # noqa: F401
 from .filesystem    import (
     tool_list_dir, tool_read_file, tool_read_pdf, tool_read_docx,
     tool_file_info, tool_write_file, tool_replace_lines

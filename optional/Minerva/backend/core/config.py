@@ -65,3 +65,9 @@ try:
     VOSK_AVAILABLE = True
 except ImportError:
     VOSK_AVAILABLE = False
+
+try:
+    from fish_audio_sdk import Session as _FishSession  # noqa: F401
+    FISH_AUDIO_AVAILABLE = True
+except ImportError:
+    FISH_AUDIO_AVAILABLE = False

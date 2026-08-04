@@ -10,11 +10,12 @@ El nombre viene de la diosa romana de la sabiduría.
 
 - **Dual engine:** Ollama (local, offline) y Gemini (API de Google Cloud) con streaming de tokens.
 - **Agentic loop:** La IA puede invocar herramientas de forma iterativa (hasta 6 turnos) para completar tareas complejas.
-- **Ejecución de comandos asíncrona** con streaming de salida en tiempo real — no se congela mientras espera.
-- **Sistema de voz completo:** Wake word ("Minerva"), STT (Whisper), TTS (Piper) y detección de silencio.
+- **Ejecución de comandos asíncrona:** Coordinada vía `JobManager` thread-safe con rastreo por `job_id`, turnos multi-comando y streaming de salida en tiempo real — no se congela mientras espera.
+- **Sistema de voz completo:** Wake word ("Minerva"), STT (Whisper), TTS dual (Piper local o Fish Audio en la nube con soporte de **Emotion Tags**) y detección de silencio.
 - **SiriOrb:** Visualización animada por GPU (fragment shader) que reacciona al audio en tiempo real con RMS y 4 bandas FFT.
 - **Memoria a largo plazo:** ChromaDB vectorial para recordar preferencias y contexto entre sesiones.
-- **Proactividad (Tareas):** Conexión a PostgreSQL para gestionar tareas con alertas visuales sutiles en el SiriOrb. Soporta **tareas recurrentes** (diaria, semanal, mensual, anual) con auto-renovación en segundo plano.
+- **Proactividad (Tareas):** Conexión a PostgreSQL para gestionar tareas con alertas visuales sutiles en el SiriOrb. Soporta **tareas recurrentes** (diaria, semanal, mensual, anual con `recurrence_month`) con auto-renovación en segundo plano.
+- **Herramientas de archivos avanzadas:** Lectura inteligente por rangos de líneas (`read_file`), metadatos (`file_info`), creación directa (`write_file`), edición quirúrgica (`replace_lines`) y conversión a Markdown para PDF, Word (.docx), PowerPoint (.pptx) y Excel/CSV (.xlsx/.csv).
 - **Tool RAG:** Selección inteligente de herramientas relevantes vía embedding semántico para no saturar el contexto.
 - **Seguridad:** Clasificación automática de comandos (safe / destructive / sudo) con confirmación en la UI.
 - **Captura de pantalla:** Visión multimodal — Minerva puede ver tu pantalla y analizarla.
@@ -77,31 +78,34 @@ optional/Minerva/
     │   ├── config.py            # Constantes globales:
     │   │                        #   - MODEL, HOME, MAX_FILE, MAX_DIR
     │   │                        #   - Paths de Spotify, voz
-    │   │                        #   - Flags de disponibilidad (VOICE_AVAILABLE, etc.)
+    │   │                        #   - Flags de disponibilidad (VOICE_AVAILABLE, FISH_AUDIO_AVAILABLE, etc.)
     │   ├── io.py                # Comunicación con QML:
     │   │                        #   - emit() / emit_error() → JSON Lines a stdout
     │   │                        #   - is_safe_path() → verificación $HOME
     │   │                        #   - classify_cmd() → safe / destructive / sudo
+    │   ├── job_manager.py       # JobManager (singleton job_mgr):
+    │   │                        #   - CommandJob: representa comandos asíncronos con job_id
+    │   │                        #   - Gestión de turnos multi-comando y estados (queued/running/completed/failed/cancelled)
     │   ├── ollama_engine.py     # Engine de chat con Ollama (API REST local):
-    │   │                        #   - Streaming de tokens, tool calls nativas
-    │   │                        #   - Agentic loop con re-invocación iterativa
+    │   │                        #   - Streaming de tokens, tool calls nativas, thinking mode
+    │   │                        #   - Agentic loop con re-invocación iterativa coordinada por turnos
     │   ├── gemini_engine.py     # Engine de chat con Gemini (API OpenAI-compatible):
     │   │                        #   - SSE streaming, tool calls incrementales (delta chunks)
-    │   │                        #   - Soporte multimodal (imágenes en base64)
+    │   │                        #   - Soporte multimodal (imágenes en base64) y desconcatenación de calls
     │   ├── voice.py             # VoiceManager (singleton voice_mgr):
-    │   │                        #   - TTS: Piper (modelo ONNX) con cola de frases
+    │   │                        #   - TTS: Piper (local ONNX) o Fish Audio API (nube) con Emotion Tags
     │   │                        #   - STT: Whisper (pywhispercpp)
     │   │                        #   - Wake word: Vosk con stream de audio continuo
-    │   │                        #   - Detección de silencio para fin de grabación
+    │   │                        #   - StreamEmotionStripper para limpiar tags en tiempo real
     │   ├── audio_analyzer.py    # AudioAnalyzer: RMS + FFT de 4 bandas
     │   │                        #   - Suavizado exponencial
     │   │                        #   - Ventana Hann para reducir spectral leakage
     │   │                        #   - Alimenta los uniforms del shader SiriOrb
-    │   └── memory.py            # ChromaDB: cliente persistente
-    │                            #   - Colección minerva_memory (memoria a largo plazo)
-    │                            #   - get_memory_context() para inyección en system prompt
-    │   ├── tasks_db.py          # Conexión a PostgreSQL (CRUD de tareas + recurrencia):
-    │                            #   - init_db(): crea tabla y agrega columnas recurrence/recurrence_day
+    │   ├── memory.py            # ChromaDB: cliente persistente
+    │   │                        #   - Colección minerva_memory (memoria a largo plazo)
+    │   │                        #   - get_memory_context() para inyección en system prompt
+    │   └── tasks_db.py          # Conexión a PostgreSQL (CRUD de tareas + recurrencia):
+    │                            #   - init_db(): crea tabla y agrega columnas recurrence/recurrence_day/recurrence_month
     │                            #   - add_task(): inserta tarea; si es recurrente y no tiene due_date,
     │                            #     calcula automáticamente la primera ocurrencia futura
     │                            #   - complete_task(): marca como completada
@@ -114,17 +118,18 @@ optional/Minerva/
     └── tools/                   # Herramientas que la IA puede invocar
         ├── __init__.py          # Exporta dispatch_tool() (despachador centralizado),
         │                        # OLLAMA_TOOLS, SYSTEM_PROMPT, get_relevant_tools() (RAG)
-        ├── definitions.py       # SYSTEM_PROMPT (personalidad, reglas, contexto)
+        ├── definitions.py       # SYSTEM_PROMPT (personalidad, reglas, contexto, FISH_AUDIO_EMOTION_PROMPT)
         │                        # OLLAMA_TOOLS (esquemas JSON de todas las herramientas)
-        ├── filesystem.py        # list_dir, read_file, read_pdf, read_docx
+        ├── filesystem.py        # list_dir, file_info, read_file, write_file, replace_lines,
+        │                        # read_pdf, read_docx, read_pptx, read_excel (vía MarkItDown)
         ├── system.py            # web_search (DuckDuckGo), launch_app (busca .desktop)
         ├── spotify.py           # spotify_music: OAuth2 completo, control de reproducción
         ├── screen.py            # capture_screen: grim → base64 → multimodal
         ├── memory_tool.py       # memorize_fact: guarda hechos en ChromaDB
         └── tasks.py             # manage_tasks: Gestiona tareas en PostgreSQL
                                  #   - Acciones: add, complete, list
-                                 #   - Soporte de recurrence ('daily','weekly','monthly','yearly')
-                                 #     recurrence_day (día del mes o semana) y recurrence_month (mes del año)
+                                 #   - Soporte de recurrence ('daily','weekly','monthly','yearly'),
+                                 #     recurrence_day y recurrence_month
 ```
 
 ---
@@ -148,8 +153,9 @@ El frontend y el backend se comunican mediante dos canales distintos:
 | Tipo              | Descripción                                          |
 |-------------------|------------------------------------------------------|
 | `chat`            | Mensaje del usuario con historial, imagen y settings |
-| `run_confirmed`   | Confirmación para ejecutar un comando normal         |
-| `run_sudo`        | Confirmación para ejecutar un comando con pkexec     |
+| `run_confirmed`   | Confirmación para ejecutar un comando normal (pasa `job_id`) |
+| `run_sudo`        | Confirmación para ejecutar un comando con pkexec (pasa `job_id`) |
+| `job_cancelled`   | Notifica que un comando fue cancelado por el usuario (pasa `job_id`) |
 | `toggle_voice`    | Iniciar/detener grabación de voz                     |
 | `cancel`          | Cancelar operación en curso                          |
 | `stop_tts`        | Detener la síntesis de voz                           |
@@ -159,19 +165,19 @@ El frontend y el backend se comunican mediante dos canales distintos:
 
 | Tipo                     | Descripción                                            |
 |--------------------------|--------------------------------------------------------|
-| `tasks_pending`          | Señal silenciosa: hay tareas pendientes (incluye `urgent: bool`) |
+| `tasks_pending`          | Señal silenciosa: hay tareas pendientes (incluye `urgent: bool`, `urgency: string`) |
 | `tasks_cleared`          | Señal silenciosa: no hay tareas pendientes             |
 | `ready`                  | Backend inicializado, modelo y home disponibles        |
 | `token`                  | Token de texto generado por la IA (streaming)          |
 | `done`                   | Respuesta completa de la IA                            |
 | `tool_start`             | La IA comienza a usar una herramienta                  |
 | `tool_result`            | Resultado de la herramienta (interno)                  |
-| `run_command`            | Comando seguro auto-ejecutable                         |
-| `command_start`          | Inicio de ejecución asíncrona de un comando            |
-| `command_output`         | Línea de salida parcial del comando en ejecución       |
-| `command_result`         | Resultado final del comando (output, returncode)       |
-| `confirm_required`       | Comando destructivo que necesita confirmación           |
-| `sudo_required`          | Comando que necesita privilegios elevados (pkexec)     |
+| `run_command`            | Comando seguro auto-ejecutable (incluye `job_id`)      |
+| `command_start`          | Inicio de ejecución asíncrona de un comando (`job_id`) |
+| `command_output`         | Línea de salida parcial del comando en ejecución (`job_id`) |
+| `command_result`         | Resultado final del comando (`job_id`, output, returncode) |
+| `confirm_required`       | Comando destructivo que necesita confirmación (`job_id`) |
+| `sudo_required`          | Comando que necesita privilegios elevados (`job_id`)   |
 | `voice_recording_started`| Grabación de micrófono iniciada                        |
 | `voice_recording_stopped`| Grabación detenida                                     |
 | `voice_transcribing`     | Transcribiendo audio con Whisper                       |
@@ -192,24 +198,24 @@ Usuario escribe → QML envía POST {"type":"chat"} → main.py recibe
     │
     ├── Inyecta fecha al SYSTEM_PROMPT
     ├── Consulta ChromaDB por memorias relevantes → las agrega al prompt
+    ├── Inyecta tareas pendientes proactivamente (si aplican)
     ├── Construye historial [system, ...history, user]
     │
     └── _dispatch_chat() → elige engine según provider
             │
-            ├── Ollama: do_chat() → API REST local, streaming
-            └── Gemini: do_chat_gemini() → API SSE, streaming
+            ├── Ollama: do_chat() → API REST local, streaming (soporta thinking mode)
+            └── Gemini: do_chat_gemini() → API SSE, streaming (soporta desconcatenación de calls)
                     │
                     ├── Emite tokens → QML los muestra en la burbuja de IA
                     │
                     ├── Si la IA decide usar tool_calls:
                     │       ├── dispatch_tool() ejecuta la herramienta
                     │       ├── Si es run_command:
+                    │       │       ├── Crea CommandJob y registra en JobManager
                     │       │       ├── safe → emite "run_command" → QML auto-confirma
-                    │       │       │          → main.py ejecuta async con Popen
-                    │       │       │          → streaming de output → command_result
-                    │       │       │          → reanuda chat con el resultado
                     │       │       ├── destructive → emite "confirm_required"
                     │       │       └── sudo → emite "sudo_required"
+                    │       │       └── Se inicia turno (job_mgr.start_turn); retoma chat cuando TODOS completan
                     │       ├── Si es otra tool → ejecuta, inyecta resultado, reitera
                     │       └── Máximo 6 iteraciones
                     │
@@ -226,7 +232,11 @@ Minerva tiene un pipeline de voz completo con tres subsistemas independientes:
 
 **STT (Speech-to-Text):** Al activar la grabación (botón de micrófono o wake word), el audio del micrófono se acumula en un búfer. Cuando se detiene la grabación (manual o por detección de silencio), el audio se transcribe con Whisper (pywhispercpp, modelo small) y el texto resultante se envía como si el usuario lo hubiera escrito.
 
-**TTS (Text-to-Speech):** Mientras la IA genera tokens, las frases completadas (detectadas por puntuación: `.!?:\n`) se envían a una cola. Un hilo TTS las sintetiza con Piper (modelo ONNX es_MX) y otro hilo las reproduce secuencialmente. Durante la reproducción, un `AudioAnalyzer` calcula métricas (RMS + FFT) que se envían al frontend para animar el SiriOrb en sincronía con la voz.
+**TTS (Text-to-Speech):** Motor dual configurable desde la UI:
+- **Piper (local ONNX):** Síntesis offline rápida con modelo ONNX en español (`es_MX-claude-high`).
+- **Fish Audio (API en la nube):** Síntesis neural de alta calidad con soporte de **Emotion Tags** (`[happy]`, `[sad]`, `[excited]`, `[confident]`, `[neutral]`, etc.). Un procesador en streaming (`StreamEmotionStripper`) limpia los tags en tiempo real antes de emitir los tokens a la UI, asegurando que la voz exprese entonación sin mostrar símbolos en el chat.
+
+Durante la reproducción de cualquier motor, un `AudioAnalyzer` calcula métricas (RMS + FFT) que se envían al frontend para animar el SiriOrb en sincronía con la voz.
 
 ---
 
@@ -235,16 +245,21 @@ Minerva tiene un pipeline de voz completo con tres subsistemas independientes:
 | Herramienta       | Archivo                | Descripción                                                      |
 |-------------------|------------------------|------------------------------------------------------------------|
 | `list_dir`        | `tools/filesystem.py`  | Lista el contenido de un directorio (dentro de $HOME)            |
-| `read_file`       | `tools/filesystem.py`  | Lee el contenido de texto de un archivo                          |
-| `read_pdf`        | `tools/filesystem.py`  | Extrae texto de un PDF                                           |
-| `read_docx`       | `tools/filesystem.py`  | Extrae contenido de un archivo Word (.docx) a markdown           |
-| `run_command`     | `tools/__init__.py`    | Ejecuta un comando bash (con clasificación de seguridad)         |
+| `file_info`       | `tools/filesystem.py`  | Devuelve metadatos del archivo (total de líneas y tamaño)        |
+| `read_file`       | `tools/filesystem.py`  | Lee un archivo por rangos de líneas (`start_line`, `end_line`)   |
+| `write_file`      | `tools/filesystem.py`  | Crea o sobreescribe un archivo de forma directa (`overwrite`)    |
+| `replace_lines`   | `tools/filesystem.py`  | Reemplazo quirúrgico de líneas específicas en un archivo         |
+| `read_pdf`        | `tools/filesystem.py`  | Extrae texto de un PDF a Markdown (vía MarkItDown)              |
+| `read_docx`       | `tools/filesystem.py`  | Extrae contenido de un archivo Word (.docx) a Markdown           |
+| `read_pptx`       | `tools/filesystem.py`  | Extrae texto de presentaciones PowerPoint (.pptx) a Markdown     |
+| `read_excel`      | `tools/filesystem.py`  | Extrae contenido de hojas Excel (.xlsx) y CSV a Markdown         |
+| `run_command`     | `tools/__init__.py`    | Ejecuta un comando bash (asíncrono, rastreado por `job_id`)      |
 | `web_search`      | `tools/system.py`      | Busca en internet via DuckDuckGo (ddgs)                          |
 | `launch_app`      | `tools/system.py`      | Busca y abre una app gráfica por nombre o sinónimo               |
 | `spotify_music`   | `tools/spotify.py`     | Control de Spotify (play, pause, search, queue, volume, etc.)    |
 | `capture_screen`  | `tools/screen.py`      | Captura la pantalla con grim → base64 → visión multimodal       |
 | `memorize_fact`   | `tools/memory_tool.py` | Guarda un hecho en la memoria permanente (ChromaDB)              |
-| `manage_tasks`    | `tools/tasks.py`       | Lee, crea y completa tareas en PostgreSQL. Soporta tareas recurrentes con `recurrence` y `recurrence_day` |
+| `manage_tasks`    | `tools/tasks.py`       | Gestiona tareas en PostgreSQL (`add`, `complete`, `list`) con soporte de recurrencia (`recurrence`, `recurrence_day`, `recurrence_month`) |
 
 ---
 
@@ -288,13 +303,17 @@ CREATE TABLE minerva_tasks (
 
 ---
 
-## Seguridad de comandos
+## Seguridad de comandos y JobManager
 
 El módulo `io.py` clasifica cada comando en tres categorías usando expresiones regulares:
 
-- **safe**: Se ejecuta inmediatamente y de forma asíncrona. El resultado se muestra en streaming.
+- **safe**: Se ejecuta de forma asíncrona tras autoconfirmación. El resultado se transmite en streaming.
 - **destructive** (rm, dd, mkfs, shred, etc.): Requiere confirmación explícita del usuario en la UI.
 - **sudo** (sudo, pkexec, pacman -S, systemctl start/stop, etc.): Se ejecuta via `pkexec` (polkit) tras confirmación.
+
+Cada comando emitido se registra en el singleton **`JobManager`** (`job_mgr`) como un **`CommandJob`** con un `job_id` único (hex corto de UUID).
+- **Estados del job:** `queued` → `running` → `completed` / `failed` / `cancelled` (si el usuario cancela en la UI).
+- **Gestión por turnos:** Cuando la IA emite uno o varios comandos en la misma respuesta, `job_mgr.start_turn()` registra el grupo. El backend espera a que todos los jobs del turno alcancen un estado terminal antes de reanudar el chat (`_dispatch_chat`) con los resultados acumulados.
 
 ---
 
@@ -314,27 +333,33 @@ Base de datos persistida en: `~/.local/share/quickshell/minerva_tools/`
 
 El backend detecta automáticamente qué dependencias están instaladas y desactiva funcionalidades que no estén disponibles:
 
-| Flag                 | Dependencias requeridas                  | Funcionalidad             |
-|----------------------|------------------------------------------|---------------------------|
-| `VOICE_AVAILABLE`    | sounddevice, soundfile, pywhispercpp     | Grabación y transcripción |
-| `VOSK_AVAILABLE`     | vosk                                     | Wake word                 |
-| `WEB_SEARCH_AVAILABLE`| ddgs                                    | Búsqueda web              |
-| `CHROMADB_AVAILABLE` | chromadb                                 | Memoria y Tool RAG        |
+| Flag                     | Dependencias requeridas                  | Funcionalidad             |
+|--------------------------|------------------------------------------|---------------------------|
+| `VOICE_AVAILABLE`        | sounddevice, soundfile, pywhispercpp     | Grabación y transcripción (STT) |
+| `VOSK_AVAILABLE`         | vosk                                     | Wake word ("Minerva")     |
+| `FISH_AUDIO_AVAILABLE`   | fish_audio_sdk                           | TTS en la nube con Emotion Tags |
+| `WEB_SEARCH_AVAILABLE`   | ddgs                                     | Búsqueda web              |
+| `CHROMADB_AVAILABLE`     | chromadb                                 | Memoria y Tool RAG        |
+| *(MarkItDown opcional)*  | markitdown                               | Extracción de texto de PDF, DOCX, PPTX y Excel/CSV |
 
-Piper TTS se carga bajo demanda (lazy-load) al primer uso de voz.
+Piper TTS se carga bajo demanda (lazy-load) al primer uso de voz local.
 
 ---
 
 ## Configuración
 
-Los ajustes de la IA se gestionan desde la UI de Quickshell y se pasan al backend en cada petición de chat:
+Los ajustes de la IA y la voz se gestionan desde la UI de Quickshell y se pasan al backend en cada petición de chat:
 
 | Ajuste            | Propiedad QML   | Descripción                                     |
 |-------------------|-----------------|--------------------------------------------------|
-| Proveedor         | `aiProvider`    | `"Ollama"` o `"Gemini"`                          |
+| Proveedor IA      | `aiProvider`    | `"Ollama"` o `"Gemini"`                          |
 | API Key Gemini    | `geminiApiKey`  | Clave de API para Google Generative AI           |
 | Modelo Gemini     | `geminiModel`   | Ej: `gemini-2.5-flash`                           |
-| Modelo Ollama     | `aiModel`       | Ej: `qwen3.5:9b`                                |
+| Modelo Ollama     | `aiModel`       | Ej: `qwen3.5:9b` o `gemma4:e4b`                  |
 | Temperatura       | `aiTemperature` | Creatividad del modelo (0.0 – 1.0)              |
 | Contexto          | `aiNumCtx`      | Ventana de contexto para Ollama (tokens)         |
 | Thinking          | `aiThinking`    | Activar razonamiento extendido (Ollama)          |
+| Proveedor TTS     | `ttsProvider`   | `"piper"` (local) o `"fish"` (Fish Audio API)    |
+| API Key Fish      | `fishApiKey`    | API Key de Fish Audio                            |
+| Voice ID Fish     | `fishVoiceId`   | ID de voz de referencia en Fish Audio            |
+| Modelo Fish       | `fishModel`     | Ej: `s2-pro`, `speech-1.5`, `speech-1.6`, etc.   |

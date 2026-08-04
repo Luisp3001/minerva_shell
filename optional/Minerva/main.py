@@ -56,7 +56,7 @@ from backend.core.memory        import memory_collection, MEMORY_AVAILABLE, get_
 from backend.core.ollama_engine import do_chat
 from backend.core.gemini_engine import do_chat_gemini
 from backend.core.job_manager   import job_mgr, CommandJob
-from backend.tools              import SYSTEM_PROMPT
+from backend.tools              import SYSTEM_PROMPT, FISH_AUDIO_EMOTION_PROMPT
 from backend.core.tasks_db      import get_pending_tasks, renew_recurring_tasks
 
 # Importaciones opcionales de voz para el handler de toggle_voice
@@ -210,18 +210,25 @@ def main():
                 renew_recurring_tasks()
                 pending = get_pending_tasks()
                 if pending:
-                    urgency = "low"
                     now = datetime.now()
-                    for t in pending:
-                        due = t.get("due_date")
-                        if due:
-                            diff = due - now
-                            if diff < timedelta(hours=24):
-                                urgency = "urgent"
-                                break
-                            elif diff < timedelta(days=3) and urgency != "urgent":
-                                urgency = "medium"
-                    emit({"type": "tasks_pending", "urgent": (urgency == "urgent"), "urgency": urgency})
+                    filtered_tasks = [
+                        t for t in pending 
+                        if not t.get("due_date") or (t.get("due_date") - now) <= timedelta(days=7)
+                    ]
+                    if filtered_tasks:
+                        urgency = "low"
+                        for t in filtered_tasks:
+                            due = t.get("due_date")
+                            if due:
+                                diff = due - now
+                                if diff < timedelta(hours=24):
+                                    urgency = "urgent"
+                                    break
+                                elif diff < timedelta(days=3) and urgency != "urgent":
+                                    urgency = "medium"
+                        emit({"type": "tasks_pending", "urgent": (urgency == "urgent"), "urgency": urgency})
+                    else:
+                        emit({"type": "tasks_cleared"})
                 else:
                     emit({"type": "tasks_cleared"})
             except Exception as e:
@@ -260,8 +267,21 @@ def main():
 
             current_settings = settings
 
+            # Actualizar proveedor TTS si viene en los settings
+            if VOICE_AVAILABLE:
+                voice_mgr.set_tts_provider(
+                    provider      = settings.get("tts_provider",  "piper"),
+                    fish_api_key  = settings.get("fish_api_key",  ""),
+                    fish_voice_id = settings.get("fish_voice_id", ""),
+                    fish_model    = settings.get("fish_model",    ""),
+                )
+
             fecha_actual             = datetime.datetime.now().strftime("%A, %d de %B de %Y, %H:%M")
             system_prompt_with_date  = SYSTEM_PROMPT.replace("{fecha_actual}", fecha_actual)
+
+            # Inyectar instrucciones de emotion tags cuando Fish Audio está activo
+            if settings.get("tts_provider", "piper") == "fish":
+                system_prompt_with_date += FISH_AUDIO_EMOTION_PROMPT
 
             # Inyectar memorias relevantes al system prompt
             memories = get_memory_context(text)
@@ -272,8 +292,14 @@ def main():
             try:
                 pending = get_pending_tasks()
                 if pending:
-                    tasks_str = "\n".join([f"- [ID: {t['id']}] {t['description']} (Vence: {t['due_date'] if t.get('due_date') else 'N/A'})" for t in pending])
-                    system_prompt_with_date += f"\n\n## Tareas pendientes del usuario:\n{tasks_str}\n\n(Puedes mencionar estas tareas de forma casual si es un momento oportuno o si el usuario te pregunta. NO las repitas en cada mensaje, solo cuando aporte valor)."
+                    now = datetime.datetime.now()
+                    filtered_tasks = [
+                        t for t in pending 
+                        if not t.get('due_date') or (t.get('due_date') - now) <= datetime.timedelta(days=7)
+                    ]
+                    if filtered_tasks:
+                        tasks_str = "\n".join([f"- [ID: {t['id']}] {t['description']} (Vence: {t['due_date'] if t.get('due_date') else 'N/A'})" for t in filtered_tasks])
+                        system_prompt_with_date += f"\n\n## Tareas pendientes del usuario:\n{tasks_str}\n\n(Puedes mencionar estas tareas de forma casual si es un momento oportuno o si el usuario te pregunta. NO las repitas en cada mensaje, solo cuando aporte valor)."
             except Exception as e:
                 pass # Silencioso si falla la db
 

@@ -981,6 +981,44 @@ Item {
                     }
                 }
 
+                // Botón detener TTS (silenciar voz)
+                Rectangle {
+                    width:   (root.aiWidget && root.aiWidget.isSpeaking) ? 42 : 0
+                    height:  parent.height
+                    radius:  12
+                    visible: width > 0
+                    clip:    true
+                    color:   stopTtsMa.containsMouse 
+                        ? Qt.rgba(Theme.warning.r, Theme.warning.g, Theme.warning.b, 0.3)
+                        : Qt.rgba(Theme.warning.r, Theme.warning.g, Theme.warning.b, 0.15)
+                    Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.InOutQuad } }
+                    Behavior on color { ColorAnimation  { duration: 150 } }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "󰝟" // NerdFont speaker off
+                        font.family: Theme.fontMono
+                        font.pixelSize: 18
+                        color: Theme.warning
+                        
+                        SequentialAnimation on opacity {
+                            running: root.aiWidget && root.aiWidget.isSpeaking
+                            loops: Animation.Infinite
+                            NumberAnimation { to: 0.4; duration: 500 }
+                            NumberAnimation { to: 1.0; duration: 500 }
+                            onStopped: opacity = 1.0
+                        }
+                    }
+
+                    MouseArea {
+                        id: stopTtsMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: if (root.aiWidget) root.aiWidget.stopTTS()
+                    }
+                }
+
                 // Botón enviar / spinner
                 Rectangle {
                     width:  42

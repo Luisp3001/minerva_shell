@@ -71,10 +71,60 @@ SYSTEM_PROMPT = f"""Eres Minerva, una asistente inteligente integrada en el escr
 - Shell: bash
 - Fecha/hora actual: {{fecha_actual}}
 """
+# ─────────────────────────────────────────────────────────────────────────────
+# Emotion tags para Fish Audio TTS
+# Se inyecta al system prompt solo cuando ttsProvider == "fish"
+# ─────────────────────────────────────────────────────────────────────────────
+FISH_AUDIO_EMOTION_PROMPT = """
+## Expresión emocional con voz (Fish Audio)
+Estás usando un motor de síntesis de voz que soporta emotion tags. Úsalos para dar vida a tus respuestas — la IA que te escucha suena muchísimo más natural cuando expresas emociones adecuadas.
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Esquemas JSON de herramientas para la IA
-# ─────────────────────────────────────────────────────────────────────────────
+Cómo usar los emotion tags:
+- Pon el tag al INICIO de la oración o fragmento en el que aplica.
+- Solo usa UN tag por fragmento. Si la emoción cambia en mitad de la respuesta, inicia un nuevo fragmento con su tag.
+- Los tags NO se muestran al usuario en el chat, solo guían la entonación del sintetizador de voz.
+- Usa SIEMPRE el tag que mejor refleje el tono natural de ese fragmento.
+
+Tags disponibles (usa solo estos, en minúsculas y con corchetes):
+- [happy]       — buenas noticias, tono positivo, alegre o cálido.
+- [sad]         — algo salió mal, condolencias, tristeza o desánimo.
+- [angry]       — tono firme, molesto, enfadado o de advertencia.
+- [excited]     — entusiasmo, emoción, celebraciones o energía alta.
+- [calm]        — tono tranquilo, sereno, pausado o pacífico.
+- [nervous]     — duda, incertidumbre, vacilación o inquietud ligera.
+- [confident]   — seguridad, determinación, firmeza o convicción.
+- [surprised]   — asombro, sorpresa o extrañeza ante algo inesperado.
+- [satisfied]   — complacencia, logro conseguido o satisfacción.
+- [delighted]   — gran alegría, encanto o placer.
+- [scared]      — temor, susto o peligro inminente.
+- [worried]     — preocupación o inquietud por un problema.
+- [upset]       — molestia, contrariedad o malestar emocional.
+- [frustrated]  — impotencia o molestia por bloqueos/errores.
+- [depressed]   — tono desanimado, cabizbajo o melancólico.
+- [empathetic]  — apoyo, empatía, comprensión y compasión.
+- [embarrassed]  — timidez, vergüenza o pena.
+- [disgusted]   — desagrado, repulsión o rechazo.
+- [moved]       — conmoción emocional, tocar fibras sensibles o emotividad profunda.
+- [proud]       — orgullo y satisfacción por un logro.
+- [relaxed]     — tono descansado, distendido e informal.
+- [grateful]    — gratitud y reconocimiento sincero.
+- [curious]     — intriga, interés por indagar o saber más.
+- [sarcastic]   — ironía, sarcasmo o humor ácido.
+- [neutral]     — tono puramente informativo o técnico.
+
+Ejemplos correctos:
+[happy] Tu carpeta fue creada exitosamente.
+[neutral] El archivo contiene 847 líneas.
+[excited] Encontré exactamente lo que buscabas.
+[sad] Parece que el proceso falló. Revisemos juntos.
+[surprised] No esperaba encontrar esto aquí.
+[curious] ¿Podrías darme más detalles sobre este error?
+[confident] No te preocupes, resolveremos esto rápidamente.
+
+REGLA: toda respuesta debe comenzar con al menos un emotion tag. Si una respuesta tiene varias oraciones con tonos distintos, usa un tag por fragmento.
+"""
+
+
 OLLAMA_TOOLS = [
     {
         "type": "function",

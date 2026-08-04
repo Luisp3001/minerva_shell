@@ -13,7 +13,8 @@ import urllib.error
 import urllib.request
 
 from .io     import emit, emit_error
-from .voice  import voice_mgr, VOICE_AVAILABLE
+from .io     import emit, emit_error
+from .voice  import voice_mgr, VOICE_AVAILABLE, strip_emotion_tags, StreamEmotionStripper
 from .job_manager import job_mgr, CommandJob
 from ..tools import dispatch_tool, get_relevant_tools, OLLAMA_TOOLS
 from ..tools.screen import ScreenCapture
@@ -114,6 +115,7 @@ def do_chat_gemini(
         full_response      = ""
         current_tool_calls = []
         buffer_frase       = ""
+        stripper           = StreamEmotionStripper()
 
         clean_history = []
         for msg in history:
@@ -162,7 +164,9 @@ def do_chat_gemini(
                         token          = delta["content"]
                         full_response += token
                         buffer_frase  += token
-                        emit({"type": "token", "content": token})
+                        clean_token    = stripper.add(token)
+                        if clean_token:
+                            emit({"type": "token", "content": clean_token})
 
                         if VOICE_AVAILABLE and not voice_mgr.tts_stop_event.is_set():
                             if re.search(r'[.!?\n:]', token) and len(buffer_frase.strip()) > 5:
@@ -210,6 +214,10 @@ def do_chat_gemini(
                                 else:
                                     current_tool_calls[idx][k] = v
 
+            rem_token = stripper.flush()
+            if rem_token:
+                emit({"type": "token", "content": rem_token})
+
         except urllib.error.HTTPError as e:
             err = e.read().decode("utf-8")
             emit_error(f"Error de Gemini API: {e.code} - {err}")
@@ -224,7 +232,7 @@ def do_chat_gemini(
                 clean_frase = buffer_frase.replace("*", "").replace("#", "").strip()
                 if clean_frase:
                     voice_mgr.tts_queue.put(clean_frase)
-            emit({"type": "done", "full_response": full_response})
+            emit({"type": "done", "full_response": strip_emotion_tags(full_response).strip()})
             return
 
         # ── Post-proceso: separar tool_calls concatenados por Gemini thinking ────
@@ -263,7 +271,7 @@ def do_chat_gemini(
                 clean_frase = buffer_frase.replace("*", "").replace("#", "").strip()
                 if clean_frase:
                     voice_mgr.tts_queue.put(clean_frase)
-            emit({"type": "done", "full_response": full_response})
+            emit({"type": "done", "full_response": strip_emotion_tags(full_response).strip()})
             return
 
         # Guardar la respuesta del assistant.
