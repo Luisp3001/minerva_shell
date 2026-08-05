@@ -268,3 +268,55 @@ def tool_replace_lines(path: str, start_line: int, end_line: int, new_content: s
         )
     except Exception as e:
         return f"Error reemplazando líneas: {e}"
+
+
+def tool_create_docx(path: str, markdown_content: str) -> str:
+    """Crea un archivo .docx a partir de contenido en Markdown usando pypandoc."""
+    exp = str(pathlib.Path(path).expanduser())
+    if not is_safe_path(exp):
+        return f"Acceso denegado: solo se permite dentro de {HOME}"
+    
+    try:
+        import pypandoc
+    except ImportError:
+        return "Error: pypandoc no está instalado (haz pip install pypandoc)."
+
+    if not shutil.which("pandoc"):
+        return "Error: pandoc no está instalado en el sistema. Instálalo con 'sudo pacman -S pandoc'."
+        
+    try:
+        p = pathlib.Path(exp)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        
+        pypandoc.convert_text(markdown_content, 'docx', format='md', outputfile=exp)
+            
+        return f"Archivo Word creado exitosamente en: {exp}"
+    except Exception as e:
+        return f"Error creando archivo Word: {e}"
+
+
+def tool_modify_docx(path: str, instruction: str) -> str:
+    """Añade texto al final de un archivo .docx existente."""
+    exp = str(pathlib.Path(path).expanduser())
+    if not is_safe_path(exp):
+        return f"Acceso denegado: solo se permite dentro de {HOME}"
+        
+    try:
+        import docx
+    except ImportError:
+        return "Error: python-docx no está instalado (haz pip install python-docx)."
+        
+    try:
+        p = pathlib.Path(exp)
+        if not p.exists():
+            return f"No existe: {exp}"
+        if not p.is_file():
+            return "No es un archivo regular"
+            
+        doc = docx.Document(exp)
+        doc.add_paragraph(instruction)
+        doc.save(exp)
+        
+        return f"Archivo Word modificado exitosamente (texto añadido al final): {exp}"
+    except Exception as e:
+        return f"Error modificando archivo Word: {e}"

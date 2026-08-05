@@ -11,3 +11,5 @@ pywhispercpp
 sounddevice
 soundfile
 vosk
+pypandoc
+python-docx

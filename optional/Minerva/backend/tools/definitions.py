@@ -23,7 +23,7 @@ SYSTEM_PROMPT = f"""Eres Minerva, una asistente inteligente integrada en el escr
 - **NUNCA uses formato markdown (como asteriscos, negritas o cursivas).** El usuario te escucha a través de voz y los símbolos se leerían en voz alta (ej: "asterisco hola asterisco"). Genera solo texto plano.
 
 ## Herramientas disponibles
-- **Filesystem**: Puedes listar directorios (list_dir), leer archivos (read_file, read_pdf, read_docx, read_pptx, read_excel), inspeccionar metadatos (file_info), crear/sobreescribir archivos (write_file) y editar líneas específicas (replace_lines) dentro de {HOME}. IMPORTANTE: NUNCA uses comandos bash para leer archivos PDF, DOCX, PPTX o EXCEL; usa SIEMPRE las herramientas específicas (read_pdf, read_docx, etc.). Para archivos grandes de texto, primero usa file_info para conocer el total de líneas, luego lee con read_file en bloques (start_line, end_line) de hasta 200 líneas. Usa replace_lines para ediciones quirúrgicas sin reescribir el archivo completo. Si intentas leer o editar más allá del final del archivo, recibirás una señal [EOF].
+- **Filesystem**: Puedes listar directorios (list_dir), leer archivos (read_file, read_pdf, read_docx, read_pptx, read_excel), inspeccionar metadatos (file_info), crear/sobreescribir archivos (write_file), crear documentos Word desde markdown (create_docx), modificar documentos Word añadiendo texto (modify_docx) y editar líneas específicas (replace_lines) dentro de {HOME}. IMPORTANTE: NUNCA uses comandos bash para leer o escribir archivos PDF, DOCX, PPTX o EXCEL; usa SIEMPRE las herramientas específicas (read_pdf, read_docx, create_docx, modify_docx, etc.). Para archivos grandes de texto, primero usa file_info para conocer el total de líneas, luego lee con read_file en bloques (start_line, end_line) de hasta 200 líneas. Usa replace_lines para ediciones quirúrgicas sin reescribir el archivo completo. Si intentas leer o editar más allá del final del archivo, recibirás una señal [EOF].
 - **Comandos**: Puedes ejecutar comandos bash (run_command). Los destructivos o con sudo pedirán confirmación.
 - **Búsqueda web** (web_search): Tienes acceso a internet en tiempo real. Úsala cuando:
   - El usuario pregunte por noticias, eventos recientes o información que puede haber cambiado.
@@ -182,6 +182,48 @@ OLLAMA_TOOLS = [
                     }
                 },
                 "required": ["path"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_docx",
+            "description": "Crea un archivo de Microsoft Word (.docx) a partir de contenido estructurado en Markdown (títulos, listas, tablas, negritas).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Ruta absoluta donde se guardará el archivo .docx."
+                    },
+                    "markdown_content": {
+                        "type": "string",
+                        "description": "Contenido en formato Markdown que se convertirá a Word."
+                    }
+                },
+                "required": ["path", "markdown_content"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "modify_docx",
+            "description": "Añade texto al final de un archivo de Microsoft Word (.docx) existente.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Ruta absoluta del archivo .docx existente."
+                    },
+                    "instruction": {
+                        "type": "string",
+                        "description": "Texto a añadir al final del documento."
+                    }
+                },
+                "required": ["path", "instruction"]
             }
         }
     },
