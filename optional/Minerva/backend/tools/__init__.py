@@ -15,7 +15,8 @@ import sys
 from .definitions   import OLLAMA_TOOLS, SYSTEM_PROMPT, FISH_AUDIO_EMOTION_PROMPT  # noqa: F401
 from .filesystem    import (
     tool_list_dir, tool_read_file, tool_read_pdf, tool_read_docx,
-    tool_file_info, tool_write_file, tool_replace_lines
+    tool_read_pptx, tool_read_excel, tool_file_info, tool_write_file,
+    tool_replace_lines
 )
 from .system        import tool_web_search, tool_launch_app
 from .spotify       import tool_spotify_music
@@ -41,7 +42,7 @@ except Exception as e:
     print(f"Error sincronizando tools en ChromaDB: {e}", file=sys.stderr)
 
 
-def get_relevant_tools(prompt: str, top_k: int = 5) -> list:
+def get_relevant_tools(prompt: str, top_k: int = 10) -> list:
     """
     Selecciona las herramientas más relevantes para el prompt usando ChromaDB.
     Si ChromaDB no está disponible, devuelve todas las tools.
@@ -50,7 +51,7 @@ def get_relevant_tools(prompt: str, top_k: int = 5) -> list:
     para cualquier pregunta sobre tareas, fechas o recordatorios.
     """
     # Tools que siempre deben estar disponibles independientemente del RAG
-    _ALWAYS_INCLUDE = {"manage_tasks"}
+    _ALWAYS_INCLUDE = {"manage_tasks", "read_pdf", "read_docx", "read_pptx", "read_excel"}
 
     if not _tool_collection or not prompt.strip():
         return OLLAMA_TOOLS
@@ -122,6 +123,12 @@ def dispatch_tool(tool_name: str, args: dict, tool_call_id: str = "") -> "str | 
 
     elif tool_name == "read_docx":
         return tool_read_docx(args.get("path", ""))
+
+    elif tool_name == "read_pptx":
+        return tool_read_pptx(args.get("path", ""))
+
+    elif tool_name == "read_excel":
+        return tool_read_excel(args.get("path", ""))
 
 
     elif tool_name == "web_search":

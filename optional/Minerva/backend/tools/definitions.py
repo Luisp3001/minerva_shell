@@ -243,7 +243,7 @@ OLLAMA_TOOLS = [
         "type": "function",
         "function": {
             "name": "read_pdf",
-            "description": "Lee el contenido de un archivo PDF extraído a texto estructurado en Markdown",
+            "description": "Lee y extrae el contenido de archivos PDF. Úsala cuando el usuario pida abrir, leer, revisar o consultar documentos PDF. NO uses run_command para esto.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -260,7 +260,7 @@ OLLAMA_TOOLS = [
         "type": "function",
         "function": {
             "name": "read_docx",
-            "description": "Lee el contenido de un archivo DOCX (Word) extraído a texto estructurado en Markdown",
+            "description": "Lee y extrae el texto de documentos de Word (DOCX, DOC). Úsala cuando el usuario pida abrir, leer, consultar o analizar documentos de texto o formato Word. NO uses run_command para esto.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -277,7 +277,7 @@ OLLAMA_TOOLS = [
         "type": "function",
         "function": {
             "name": "read_pptx",
-            "description": "Lee el contenido de un archivo PPTX (PowerPoint) extraído a texto estructurado en Markdown (incluye diapositivas y texto)",
+            "description": "Lee y extrae el contenido de presentaciones de PowerPoint o diapositivas (PPTX, PPT). Úsala cuando el usuario pida abrir, leer, revisar o resumir diapos, presentaciones, filminas o archivos .pptx. NO uses run_command para esto.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -294,7 +294,7 @@ OLLAMA_TOOLS = [
         "type": "function",
         "function": {
             "name": "read_excel",
-            "description": "Lee el contenido de archivos Excel (XLSX) o CSV extraído a texto en formato Markdown",
+            "description": "Lee y extrae el contenido de archivos de Excel (XLSX, XLS), libros, hojas de cálculo, datos o tablas CSV. Úsala cuando el usuario pida abrir, leer, consultar o revisar hojas de cálculo, tablas, matrices o archivos .xlsx/.csv. NO uses run_command para esto.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -311,7 +311,7 @@ OLLAMA_TOOLS = [
         "type": "function",
         "function": {
             "name": "run_command",
-            "description": "Ejecuta un comando de bash en el sistema",
+            "description": "Ejecuta un comando de bash en el sistema. NOTA: NO usarla para leer o inspeccionar archivos (PDF, Word, Excel, PowerPoint, texto) ni para listar directorios; para leer archivos usa siempre las herramientas específicas como read_excel, read_pptx, read_docx, read_pdf o read_file.",
             "parameters": {
                 "type": "object",
                 "properties": {

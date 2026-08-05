@@ -19,7 +19,7 @@
     {
       "id": "com.luisp.screenrec",
       "path": "optional/screenrec",
-      "enabled": false,
+      "enabled": true,
       "name": "Screen Recorder",
       "main": "Main.qml",
       "type": "widget"
