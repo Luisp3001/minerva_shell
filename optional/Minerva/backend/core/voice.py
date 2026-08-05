@@ -36,10 +36,10 @@ import re as _re
 
 # Tags soportados por Fish Audio:
 # [happy] [sad] [angry] [excited] [calm] [nervous] [confident] [surprised] [satisfied]
-# [delighted] [scared] [worried] [upset] [frustrated] [depressed] [empathetic]
+# [scared] [worried] [upset] [frustrated] [empathetic]
 # [embarrassed] [disgusted] [moved] [proud] [relaxed] [grateful] [curious] [sarcastic]
 # (+ aliases de compatibilidad: [neutral] [fearful] [disgust] [surprise])
-_EMOTION_TAGS_PATTERN = r'happy|sad|angry|excited|calm|nervous|confident|surprised|surprise|satisfied|delighted|scared|fearful|worried|upset|frustrated|depressed|empathetic|embarrassed|disgusted|disgust|moved|proud|relaxed|grateful|curious|sarcastic|neutral'
+_EMOTION_TAGS_PATTERN = r'happy|sad|angry|excited|calm|nervous|confident|surprised|surprise|satisfied|scared|fearful|worried|upset|frustrated|empathetic|embarrassed|disgusted|disgust|moved|proud|relaxed|grateful|curious|sarcastic|neutral'
 
 _EMOTION_TAG_RE = _re.compile(
     rf'\s*\[({_EMOTION_TAGS_PATTERN})\]\s*',
