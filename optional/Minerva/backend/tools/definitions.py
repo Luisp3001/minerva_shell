@@ -23,7 +23,7 @@ SYSTEM_PROMPT = f"""Eres Minerva, una asistente inteligente integrada en el escr
 - **NUNCA uses formato markdown (como asteriscos, negritas o cursivas).** El usuario te escucha a través de voz y los símbolos se leerían en voz alta (ej: "asterisco hola asterisco"). Genera solo texto plano.
 
 ## Herramientas disponibles
-- **Filesystem**: Puedes listar directorios (list_dir), leer archivos (read_file, read_pdf, read_docx, read_pptx, read_excel), inspeccionar metadatos (file_info), crear/sobreescribir archivos (write_file), crear documentos Word desde markdown (create_docx), modificar documentos Word añadiendo texto (modify_docx) y editar líneas específicas (replace_lines) dentro de {HOME}. IMPORTANTE: NUNCA uses comandos bash para leer o escribir archivos PDF, DOCX, PPTX o EXCEL; usa SIEMPRE las herramientas específicas (read_pdf, read_docx, create_docx, modify_docx, etc.). Para archivos grandes de texto, primero usa file_info para conocer el total de líneas, luego lee con read_file en bloques (start_line, end_line) de hasta 200 líneas. Usa replace_lines para ediciones quirúrgicas sin reescribir el archivo completo. Si intentas leer o editar más allá del final del archivo, recibirás una señal [EOF].
+- **Filesystem**: Puedes listar directorios (list_dir), leer archivos (read_file, read_pdf, read_docx, read_pptx, read_excel), inspeccionar metadatos (file_info), crear/sobreescribir archivos (write_file), crear documentos Word desde markdown (create_docx), modificar documentos Word añadiendo texto (modify_docx) y editar líneas específicas (replace_lines) dentro de {HOME}. IMPORTANTE: NUNCA uses comandos bash para leer o escribir archivos PDF, DOCX, PPTX o EXCEL; usa SIEMPRE las herramientas específicas (read_pdf, read_docx, create_docx, modify_docx, etc.). Para archivos grandes de texto, primero usa file_info para conocer el total de líneas, luego lee con read_file en bloques (start_line, end_line) de hasta 200 líneas. Usa replace_lines para ediciones quirúrgicas sin reescribir el archivo completo. Si intentas leer o editar más allá del final del archivo, recibirás una señal [EOF]. Para buscar información concreta dentro de un PDF/DOCX/PPTX/MD/TXT largo sin leerlo completo, usa query_document con una pregunta específica (RAG efímero); NO lo uses con Excel/CSV, esos siempre van con read_excel.
 - **Comandos**: Puedes ejecutar comandos bash (run_command). Los destructivos o con sudo pedirán confirmación.
 - **Búsqueda web** (web_search): Tienes acceso a internet en tiempo real. Úsala cuando:
   - El usuario pregunte por noticias, eventos recientes o información que puede haber cambiado.
@@ -468,6 +468,31 @@ OLLAMA_TOOLS = [
                         "description": "Nombre del monitor Wayland a capturar (ej: 'DP-1', 'HDMI-A-1'). Omite este parámetro para capturar toda la pantalla."
                     }
                 }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_document",
+            "description": "Busca información específica dentro de un documento grande (PDF, DOCX, PPTX) usando RAG semántico efímero. Úsala cuando el usuario pregunte algo concreto sobre el contenido de un documento sin necesitar leerlo completo (ej: '¿qué dice el contrato sobre garantías?', 'busca en el PDF la sección de precios', 'encuentrame los requisitos en el documento'). NO soporta Excel/XLSX/CSV (usa read_excel) ni archivos de texto plano como .md o .txt (para esos usa read_file con start_line/end_line). Para leer un documento completo sin consulta específica, usa read_pdf, read_docx o read_pptx.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Ruta absoluta del documento a consultar (PDF, DOCX, PPTX, MD, TXT, etc.)"
+                    },
+                    "query": {
+                        "type": "string",
+                        "description": "La pregunta o búsqueda semántica a resolver dentro del documento. Sé específico para obtener mejores resultados."
+                    },
+                    "top_k": {
+                        "type": "integer",
+                        "description": "Número de fragmentos relevantes a devolver (1-10, por defecto 5). Usa menos si quieres respuestas más precisas; más si el contexto puede estar disperso."
+                    }
+                },
+                "required": ["path", "query"]
             }
         }
     },

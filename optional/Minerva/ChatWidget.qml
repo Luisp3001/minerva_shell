@@ -213,7 +213,7 @@ Item {
                 onDone(msg.full_response || "")
                 break
             case "tool_start":
-                addSystemMsg(toolLabel(msg.tool || ""))
+                addSystemMsg(toolLabel(msg.tool || "", msg.args || {}))
                 break
             case "tool_result":
                 break   // interno, no mostrar
@@ -307,11 +307,37 @@ Item {
         }
     }
 
-    function toolLabel(t) {
-        if (t === "list_dir")    return "󰏗  Listando directorio…"
-        if (t === "read_file")   return "󰈙  Leyendo archivo…"
+    function toolLabel(t, args) {
+        if (t === "list_dir") {
+            let p = args && args.path ? args.path.split('/').pop() : ""
+            return "󰏗  Listando directorio" + (p ? " " + p + "…" : "…")
+        }
+        if (t === "read_file" || t === "read_pdf" || t === "read_docx" || t === "read_pptx" || t === "read_excel") {
+            let msg = "󰈙  Leyendo archivo"
+            if (args && args.path) {
+                let p = args.path.split('/').pop()
+                msg += " " + p
+            }
+            if (args && args.start_line !== undefined && args.end_line !== undefined) {
+                msg += " (líneas " + args.start_line + "-" + args.end_line + ")"
+            }
+            return msg + "…"
+        }
         if (t === "run_command") return "󰆍  Preparando comando…"
-        if (t === "web_search")  return "󰖟  Buscando en internet…"
+        if (t === "web_search") {
+            let q = args && args.query ? args.query : ""
+            return "󰖟  Buscando en internet" + (q ? ": " + q + "…" : "…")
+        }
+        if (t === "memorize_fact") return "󰋊  Guardando en memoria…"
+        if (t === "spotify_music") return "󰓇  Controlando Spotify…"
+        if (t === "manage_tasks") return "󰃭  Gestionando tareas…"
+        if (t === "capture_screen") return "󰹑  Tomando captura de pantalla…"
+        if (t === "write_file") return "󰏚  Escribiendo archivo…"
+        if (t === "replace_lines") return "󰏚  Editando archivo…"
+        if (t === "create_docx" || t === "modify_docx") return "󰏚  Modificando documento…"
+        if (t === "query_document") return "󰈙  Consultando documento…"
+        if (t === "launch_app") return "󰀨  Lanzando aplicación…"
+        if (t === "file_info") return "󰋽  Consultando metadatos…"
         return "󰏗  Usando herramienta…"
     }
 

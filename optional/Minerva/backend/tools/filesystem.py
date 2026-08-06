@@ -175,6 +175,149 @@ def tool_read_excel(path: str) -> str:
     return _read_with_markitdown(path, "EXCEL/CSV")
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# RAG Efímero
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Tipos de archivo soportados por el RAG efímero.
+# Texto plano (.md, .txt, .rst, .tex) se excluye: read_file con rangos de líneas
+# es más rápido y determinista para ese caso.
+# Excel/CSV también se excluye: los datos tabulares no funcionan bien con
+# búsqueda semántica por chunks de texto libre.
+_RAG_SUPPORTED_EXTENSIONS = {
+    ".pdf", ".docx", ".doc", ".pptx", ".ppt",
+}
+
+
+def _chunk_text(text: str, chunk_size: int = 1000, overlap: int = 200) -> list[str]:
+    """Divide texto en chunks de tamaño fijo con solapamiento.
+
+    Intenta respetar párrafos (doble newline) antes de cortar por caracteres.
+    El solapamiento asegura que ningún dato importante quede partido entre dos chunks.
+    """
+    if not text:
+        return []
+
+    # Normalizar saltos de línea excesivos para reducir ruido
+    import re
+    text = re.sub(r"\n{3,}", "\n\n", text).strip()
+
+    if len(text) <= chunk_size:
+        return [text]
+
+    chunks: list[str] = []
+    start = 0
+    text_len = len(text)
+
+    while start < text_len:
+        end = min(start + chunk_size, text_len)
+
+        # Si no llegamos al final, buscar un salto de párrafo limpio
+        if end < text_len:
+            # Buscar el último doble-newline dentro del chunk
+            cut = text.rfind("\n\n", start, end)
+            if cut != -1 and cut > start + overlap:
+                end = cut + 2  # incluir el doble newline para no perder contexto
+            else:
+                # Si no hay párrafo, buscar el último espacio
+                cut = text.rfind(" ", start, end)
+                if cut != -1 and cut > start + overlap:
+                    end = cut + 1
+
+        chunks.append(text[start:end].strip())
+        # Avanzar con solapamiento
+        start = max(start + 1, end - overlap)
+
+    return [c for c in chunks if c]
+
+
+def tool_query_document(path: str, query: str, top_k: int = 5) -> str:
+    """Busca respuestas semánticas dentro de un documento sin leerlo completo.
+
+    Pipeline: archivo → MarkItDown → chunks → ChromaDB en memoria → top-K relevantes.
+    Soporta PDF, DOCX, PPTX, MD, TXT y otros formatos de texto.
+    NO soporta Excel/CSV (usa read_excel para esos).
+
+    Args:
+        path:  Ruta absoluta del documento a consultar.
+        query: La pregunta o búsqueda semántica a resolver.
+        top_k: Número de fragmentos más relevantes a retornar (por defecto 5).
+    """
+    exp = str(pathlib.Path(path).expanduser())
+    if not is_safe_path(exp):
+        return f"Acceso denegado: solo se permite dentro de {HOME}"
+
+    p = pathlib.Path(exp)
+    if not p.exists() or not p.is_file():
+        return f"Archivo no encontrado: {exp}"
+
+    ext = p.suffix.lower()
+    if ext not in _RAG_SUPPORTED_EXTENSIONS:
+        return (
+            f"Formato '{ext}' no soportado por query_document. "
+            f"Para texto plano (MD, TXT, RST...) usa read_file con start_line/end_line. "
+            f"Para Excel/CSV usa read_excel. "
+            f"Formatos soportados: {', '.join(sorted(_RAG_SUPPORTED_EXTENSIONS))}"
+        )
+
+    # ── 1. Extraer texto ───────────────────────────────────────────────────────────
+    try:
+        from markitdown import MarkItDown
+        result = MarkItDown().convert(exp)
+        text = result.text_content or ""
+    except ImportError:
+        return "Error: markitdown no está instalado (pip install markitdown)."
+    except Exception as e:
+        return f"Error extrayendo texto de {p.name}: {e}"
+
+    if not text.strip():
+        return f"El documento '{p.name}' no contiene texto extraíble."
+
+    # ── 2. Chunking ───────────────────────────────────────────────────────────
+    chunks = _chunk_text(text, chunk_size=1000, overlap=200)
+    if not chunks:
+        return "No se pudo dividir el documento en fragmentos."
+
+    # ── 3. ChromaDB en memoria (efímero) ──────────────────────────────────────
+    try:
+        import chromadb
+    except ImportError:
+        return "Error: chromadb no está instalado (pip install chromadb)."
+
+    try:
+        client = chromadb.EphemeralClient()
+        # Nombre de colección único por archivo para evitar colisiones
+        collection_name = f"rag_{p.stem[:40].replace(' ', '_')}"
+        collection = client.create_collection(name=collection_name)
+
+        ids = [f"chunk_{i}" for i in range(len(chunks))]
+        collection.add(documents=chunks, ids=ids)
+
+        top_k = max(1, min(int(top_k), len(chunks)))
+        results = collection.query(query_texts=[query], n_results=top_k)
+    except Exception as e:
+        return f"Error en RAG efímero: {e}"
+
+    # ── 4. Formatear respuesta ────────────────────────────────────────────────
+    docs = results.get("documents", [[]])[0]
+    distances = results.get("distances", [[]])[0]
+
+    if not docs:
+        return f"No se encontraron fragmentos relevantes para: '{query}'"
+
+    lines = [
+        f"Resultados de búsqueda en '{p.name}' para: \"{query}\"",
+        f"({len(docs)} fragmento(s) relevantes de {len(chunks)} totales)",
+        "─" * 60,
+    ]
+    for i, (doc, dist) in enumerate(zip(docs, distances), 1):
+        relevance = max(0.0, 1.0 - dist)
+        lines.append(f"\n[Fragmento {i} — relevancia {relevance:.0%}]")
+        lines.append(doc)
+
+    return "\n".join(lines)
+
+
 def tool_write_file(path: str, content: str, overwrite: bool = False) -> str:
     """Crea o sobreescribe un archivo con el contenido dado.
 

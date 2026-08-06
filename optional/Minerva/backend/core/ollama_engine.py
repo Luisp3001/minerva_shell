@@ -117,7 +117,7 @@ def do_chat(
             args      = tc.function.arguments  # ya es dict en ollama-python
             tc_id     = f"tc_{i}"              # Ollama no provee id, generamos uno
 
-            emit({"type": "tool_start", "tool": tool_name})
+            emit({"type": "tool_start", "tool": tool_name, "args": args})
             result = dispatch_tool(tool_name, args, tool_call_id=tc_id)
 
             if isinstance(result, CommandJob):

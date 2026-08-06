@@ -294,7 +294,7 @@ def do_chat_gemini(
                 args = {}
 
             tc_id = tc.get("id", "")
-            emit({"type": "tool_start", "tool": tool_name})
+            emit({"type": "tool_start", "tool": tool_name, "args": args})
             result = dispatch_tool(tool_name, args, tool_call_id=tc_id)
 
             if isinstance(result, CommandJob):
