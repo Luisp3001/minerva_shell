@@ -204,8 +204,8 @@ def main():
         from datetime import datetime, timedelta
         while True:
             try:
-                # Polling cada 3 minutos
-                time.sleep(180)
+                # Polling cada 10 minutos
+                time.sleep(600)
                 # Renovar tareas recurrentes vencidas antes de leer pendientes
                 renew_recurring_tasks()
                 pending = get_pending_tasks()
