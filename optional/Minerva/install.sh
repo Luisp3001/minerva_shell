@@ -75,10 +75,21 @@ fi
 cd ..
 
 echo ""
-echo "==> 6. Comprobando configuración de .env (Tareas)..."
-if [ ! -f "backend/.env" ]; then
-    echo "    Creando backend/.env por defecto..."
-    cat > backend/.env << 'EOF'
+echo "==> 6. Comprobando configuración en ~/.config/minerva..."
+MINERVA_DIR="$HOME/.config/minerva"
+MINERVA_MEMORY_DIR="$MINERVA_DIR/memory"
+mkdir -p "$MINERVA_DIR"
+mkdir -p "$MINERVA_MEMORY_DIR"
+
+# .env unificado
+if [ ! -f "$MINERVA_DIR/.env" ]; then
+    # Migrar backend/.env si existe
+    if [ -f "backend/.env" ]; then
+        echo "    Migrando backend/.env a $MINERVA_DIR/.env..."
+        cp backend/.env "$MINERVA_DIR/.env"
+    else
+        echo "    Creando $MINERVA_DIR/.env por defecto..."
+        cat > "$MINERVA_DIR/.env" << 'EOF'
 # Configuración de base de datos para tareas
 # DB_HOST=localhost
 # DB_PORT=5432
@@ -86,16 +97,16 @@ if [ ! -f "backend/.env" ]; then
 # DB_USER=postgres
 # DB_PASS=postgres
 EOF
-    echo "    -> Por favor, edita backend/.env con tus credenciales de PostgreSQL si usas las Tareas."
+        echo "    -> Por favor, edita $MINERVA_DIR/.env con tus credenciales de PostgreSQL si usas las Tareas."
+    fi
 else
-    echo "    El archivo .env ya existe."
+    echo "    El archivo $MINERVA_DIR/.env ya existe."
 fi
 
 echo ""
 echo "==> 7. Comprobando configuración de Spotify..."
-SPOTIFY_DIR="$HOME/.config/spotify_minerva"
+SPOTIFY_DIR="$MINERVA_DIR"
 SPOTIFY_CREDS="$SPOTIFY_DIR/credentials.json"
-mkdir -p "$SPOTIFY_DIR"
 
 if [ ! -f "$SPOTIFY_CREDS" ]; then
     echo "    Creando plantilla de credenciales en $SPOTIFY_CREDS..."

@@ -6,7 +6,7 @@ Paquete tools de Minerva.
 Expone:
   - OLLAMA_TOOLS            → lista de esquemas JSON de herramientas
   - SYSTEM_PROMPT           → prompt del sistema
-  - get_relevant_tools()    → RAG sobre ChromaDB para seleccionar tools relevantes
+  - get_relevant_tools()    → RAG sobre ChromaDB efímero para seleccionar tools relevantes
   - dispatch_tool()         → despachador centralizado (elimina la duplicación entre engines)
 """
 import re
@@ -20,26 +20,27 @@ from .filesystem    import (
 )
 from .system        import tool_web_search, tool_launch_app
 from .spotify       import tool_spotify_music
-from .memory_tool   import tool_memorize_fact
+from .memory_tool   import tool_update_memory
 from .screen        import tool_capture_screen, ScreenCapture
 from .tasks         import tool_manage_tasks
-from ..core.memory  import chroma_client, CHROMADB_AVAILABLE
 from ..core.io      import classify_cmd, emit
 from ..core.config  import HOME
 from ..core.job_manager import job_mgr, CommandJob  # noqa: F401
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Colección ChromaDB para RAG de tools
+# Colección ChromaDB efímera para RAG de tools (seleccionar herramientas relevantes por prompt)
+# Usa EphemeralClient para NO necesitar el ChromaDB persistente de la memoria anterior.
 # ─────────────────────────────────────────────────────────────────────────────
 _tool_collection = None
 try:
-    if chroma_client and CHROMADB_AVAILABLE:
-        _tool_collection = chroma_client.get_or_create_collection(name="minerva_tools")
-        _tool_docs = [t["function"]["description"] for t in OLLAMA_TOOLS]
-        _tool_ids  = [t["function"]["name"]        for t in OLLAMA_TOOLS]
-        _tool_collection.upsert(documents=_tool_docs, ids=_tool_ids)
+    import chromadb as _chromadb
+    _ephemeral_client = _chromadb.EphemeralClient()
+    _tool_collection  = _ephemeral_client.get_or_create_collection(name="minerva_tools")
+    _tool_docs = [t["function"]["description"] for t in OLLAMA_TOOLS]
+    _tool_ids  = [t["function"]["name"]        for t in OLLAMA_TOOLS]
+    _tool_collection.upsert(documents=_tool_docs, ids=_tool_ids)
 except Exception as e:
-    print(f"Error sincronizando tools en ChromaDB: {e}", file=sys.stderr)
+    print(f"Error sincronizando tools en ChromaDB efímero: {e}", file=sys.stderr)
 
 
 def get_relevant_tools(prompt: str, top_k: int = 10) -> list:
@@ -155,8 +156,12 @@ def dispatch_tool(tool_name: str, args: dict, tool_call_id: str = "") -> "str | 
             max_res = 5
         return tool_web_search(args.get("query", ""), max_res)
 
-    elif tool_name == "memorize_fact":
-        return tool_memorize_fact(args.get("fact", ""))
+    elif tool_name == "update_memory":
+        return tool_update_memory(
+            file_key = args.get("file_key", "profile"),
+            section  = args.get("section",  ""),
+            content  = args.get("content",  ""),
+        )
 
     elif tool_name == "launch_app":
         return tool_launch_app(args.get("query", ""))

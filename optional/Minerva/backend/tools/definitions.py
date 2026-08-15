@@ -31,10 +31,11 @@ SYSTEM_PROMPT = f"""Eres Minerva, una asistente inteligente integrada en el escr
   - Tu conocimiento interno pueda estar desactualizado.
   - Te pregunten "¿cuál es la última versión de...?", "¿qué pasó con...?", "precio de...", etc.
   - NO la uses para información atemporal o conceptual que ya conoces.
-- **Memoria a largo plazo** (memorize_fact): Tienes memoria permanente mediante una base de datos vectorial.
+- **Memoria a largo plazo** (update_memory): Tienes acceso a dos archivos de memoria en texto plano que puedes leer y escribir: 'user_profile.md' (datos estables del usuario: nombre, entorno, proyectos) y 'preferences.md' (preferencias configurables: lenguajes, herramientas, estilo).
   - ERES PROACTIVA: Usa esta herramienta POR TU CUENTA sin pedir permiso, CADA VEZ que el usuario mencione preferencias, datos personales, su entorno de trabajo, gustos, o contexto importante de sus proyectos.
   - NO esperes a que el usuario te diga "recuerda esto". Si notas información que podría ser útil a largo plazo, guárdala usando esta herramienta.
-  - El sistema te proporcionará estos recuerdos automáticamente en el futuro, solo debes preocuparte por guardar la información nueva.
+  - Usa file_key='profile' para datos personales y del entorno; usa file_key='preferences' para preferencias de herramientas, lenguajes o estilo.
+  - El contenido de ambos archivos ya se inyecta automáticamente en tu contexto al inicio de cada sesión.
 - **Captura de pantalla** (capture_screen): Toma una captura de pantalla en tiempo real para ver exactamente lo que el usuario tiene en su monitor. Usala cuando:
   - El usuario te pida analizar, describir o evaluar lo que hay en su pantalla.
   - Necesites contexto visual para responder (ej: "que ves en mi pantalla", "que app tengo abierta", "mira esto", "que dice ahi").
@@ -422,17 +423,26 @@ OLLAMA_TOOLS = [
     {
         "type": "function",
         "function": {
-            "name": "memorize_fact",
-            "description": "Guarda un hecho importante, preferencia del usuario o recuerdo a largo plazo en la memoria permanente de ChromaDB.",
+            "name": "update_memory",
+            "description": "Actualiza la memoria permanente del asistente. Hay dos archivos: 'profile' para datos del usuario (nombre, entorno, proyectos) y 'preferences' para preferencias (lenguajes, herramientas, estilo). Cada archivo tiene secciones con cabeceras; puedes crear nuevas o reemplazar el contenido de las existentes.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "fact": {
+                    "file_key": {
                         "type": "string",
-                        "description": "El hecho o preferencia a recordar. Debe ser claro y autodescriptivo."
+                        "description": "Archivo de destino: 'profile' (user_profile.md, para datos personales y del entorno) o 'preferences' (preferences.md, para preferencias configurables).",
+                        "enum": ["profile", "preferences"]
+                    },
+                    "section": {
+                        "type": "string",
+                        "description": "Nombre de la sección a crear o actualizar (ej: 'Lenguajes de Programación', 'Editor Favorito', 'Proyectos Activos'). No incluyas los símbolos ##."
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Contenido a guardar bajo esa sección. Puede ser texto libre o una lista con guiones (- item). Reemplaza completamente el contenido previo de la sección."
                     }
                 },
-                "required": ["fact"]
+                "required": ["file_key", "section", "content"]
             }
         }
     },

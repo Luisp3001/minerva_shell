@@ -328,7 +328,7 @@ Item {
             let q = args && args.query ? args.query : ""
             return "󰖟  Buscando en internet" + (q ? ": " + q + "…" : "…")
         }
-        if (t === "memorize_fact") return "󰋊  Guardando en memoria…"
+        if (t === "update_memory") return "󰋊  Guardando en memoria…"
         if (t === "spotify_music") return "󰓇  Controlando Spotify…"
         if (t === "manage_tasks") return "󰃭  Gestionando tareas…"
         if (t === "capture_screen") return "󰹑  Tomando captura de pantalla…"
