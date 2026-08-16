@@ -479,7 +479,7 @@ Item {
             spacing: 12
 
             Text {
-                text: "󰍉"
+                text: "  󰍉"
                 font.family: "Iosevka Nerd Font"
                 font.pixelSize: 20
                 color: Theme.textPrimary
