@@ -526,7 +526,7 @@ Item {
 
         // ── Divider ──────────────────────────────────────────────
         Rectangle {
-            width: parent.width
+            width: parent.width 
             height: dividerHeight
             color: Qt.rgba(
                 Theme.textPrimary.r,

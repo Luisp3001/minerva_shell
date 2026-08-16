@@ -95,7 +95,7 @@ Item {
     property int targetWidth: {
         if (isFileHovered) return 300
         if (isWallpaperExpanded) return 1100
-        if (isLauncherExpanded) return normalBaseWidth + 200
+        if (isLauncherExpanded) return normalBaseWidth + 50
         if (isPluginInstallExpanded) return 400
         if (isCommandApprovalExpanded) return 400
         if (activeDynamicWidget !== null) return activeDynamicWidget.expandedWidth || 400
