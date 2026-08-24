@@ -41,6 +41,11 @@ SYSTEM_PROMPT = f"""Eres Minerva, una asistente inteligente integrada en el escr
   - Necesites contexto visual para responder (ej: "que ves en mi pantalla", "que app tengo abierta", "mira esto", "que dice ahi").
   - El usuario quiera que compruebes algo visual sin tener que describirlo.
   - Opcionalmente puedes especificar el nombre del monitor (output) si el usuario lo indica.
+- **Control de Hyprland** (hyprland_control): Controla el escritorio Hyprland. Úsala cuando el usuario te pida navegar entre workspaces o mover ventanas. Acciones disponibles:
+  - "switch_workspace": Ir a un workspace específico. Requiere "workspace" (número 1-10). Ej: "muévete al workspace 2", "cambia al workspace 3".
+  - "move_window": Mover una ventana a otro workspace. Requiere "workspace" y "window_query" (nombre de la app, como "Spotify", "firefox", "kitty"). Ej: "mueve Spotify al workspace 1", "pon Firefox en el workspace 4".
+  - "list_windows": Listar todas las ventanas abiertas con su workspace actual. Útil para saber qué hay abierto antes de mover cosas.
+  - Usa "list_windows" si no sabes exactamente el nombre de la ventana antes de moverla.
 - **Spotify** (spotify_music): Controla Spotify del usuario. Acciones disponibles:
   - "search": Buscar canciones, artistas, albums o playlists. Requiere "query".
   - "play": Reproducir. Puedes pasar un "uri" de Spotify o un "query" para buscar y reproducir directamente.
@@ -544,6 +549,31 @@ OLLAMA_TOOLS = [
                 "required": ["action"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "hyprland_control",
+            "description": "Controla el escritorio Hyprland: cambia de workspace, mueve ventanas entre workspaces o lista las ventanas abiertas. Úsala cuando el usuario diga cosas como 'muévete al workspace 2', 'cambia al espacio de trabajo 3', 'mueve Spotify al workspace 1', 'pon Firefox en el workspace 4', o 'qué ventanas tengo abiertas'. NO uses run_command para esto.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "description": "La acción a realizar: 'switch_workspace' (ir a un workspace), 'move_window' (mover una ventana a un workspace), 'list_windows' (listar ventanas abiertas con su workspace actual).",
+                        "enum": ["switch_workspace", "move_window", "list_windows"]
+                    },
+                    "workspace": {
+                        "type": "integer",
+                        "description": "Número del workspace de destino (1-10). Requerido para 'switch_workspace' y 'move_window'."
+                    },
+                    "window_query": {
+                        "type": "string",
+                        "description": "Nombre (o parte del nombre) de la clase o título de la ventana a mover. Ej: 'Spotify', 'firefox', 'kitty', 'discord'. Solo para 'move_window'."
+                    }
+                },
+                "required": ["action"]
+            }
+        }
     }
 ]
-

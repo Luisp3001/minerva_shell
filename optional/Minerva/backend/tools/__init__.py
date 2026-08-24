@@ -18,7 +18,7 @@ from .filesystem    import (
     tool_read_pptx, tool_read_excel, tool_file_info, tool_write_file,
     tool_replace_lines, tool_create_docx, tool_modify_docx, tool_query_document
 )
-from .system        import tool_web_search, tool_launch_app
+from .system        import tool_web_search, tool_launch_app, tool_hyprland_control
 from .spotify       import tool_spotify_music
 from .memory_tool   import tool_update_memory
 from .screen        import tool_capture_screen, ScreenCapture
@@ -235,6 +235,17 @@ def dispatch_tool(tool_name: str, args: dict, tool_call_id: str = "") -> "str | 
             return result
         # Si hubo error, result es un str con el mensaje
         return result
+
+    elif tool_name == "hyprland_control":
+        try:
+            ws = int(args["workspace"]) if args.get("workspace") is not None else None
+        except (ValueError, TypeError):
+            ws = None
+        return tool_hyprland_control(
+            action       = args.get("action", ""),
+            workspace    = ws,
+            window_query = args.get("window_query", "") or None,
+        )
 
     else:
         return "Herramienta desconocida"

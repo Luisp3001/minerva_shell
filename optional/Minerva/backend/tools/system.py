@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Herramientas de sistema para Minerva: búsqueda web y lanzamiento de apps.
-"""
+Herramientas de sistema para Minerva: búsqueda web, lanzamiento de apps y control de Hyprland."""
 import os
 import re
 import subprocess
@@ -137,3 +136,119 @@ def tool_launch_app(query: str) -> str:
             return f"Error abriendo aplicación: {e}. IMPORTANTE: Informa al usuario del error."
 
     return f"No se encontró ninguna aplicación gráfica para: {query}. IMPORTANTE: Informa al usuario que no la encontraste."
+
+
+def tool_hyprland_control(action: str, workspace: int | None = None, window_query: str | None = None) -> str:
+    """
+    Controla Hyprland: navega a un workspace o mueve una ventana entre workspaces.
+    Usa la API Lua de Hyprland 0.56 (hyprctl eval / hyprctl dispatch).
+
+    Parámetros:
+      action        : 'switch_workspace'  → ir al workspace indicado
+                    | 'move_window'       → mover una ventana al workspace indicado
+                    | 'list_windows'      → listar ventanas abiertas con su workspace
+      workspace     : número de workspace destino (requerido para switch/move)
+      window_query  : nombre de clase o título de la ventana a mover (solo para 'move_window')
+                      Ejemplos: 'Spotify', 'firefox', 'kitty'
+    """
+    action = action.strip().lower()
+
+    # ── list_windows ────────────────────────────────────────────────────────
+    if action == "list_windows":
+        try:
+            result = subprocess.run(
+                ["hyprctl", "clients", "-j"],
+                capture_output=True, text=True, timeout=5
+            )
+            import json
+            clients = json.loads(result.stdout)
+            if not clients:
+                return "No hay ventanas abiertas en este momento."
+            lines = ["Ventanas abiertas:"]
+            for c in clients:
+                cls   = c.get("class", "desconocida")
+                title = c.get("title", "")[:50]
+                ws_id = c.get("workspace", {}).get("id", "?")
+                lines.append(f"  - {cls} | '{title}' | workspace {ws_id}")
+            return "\n".join(lines)
+        except Exception as e:
+            return f"Error listando ventanas: {e}"
+
+    # ── switch_workspace ────────────────────────────────────────────────────
+    if action == "switch_workspace":
+        if workspace is None:
+            return "Error: debes indicar el número de workspace al que quieres ir."
+        try:
+            subprocess.run(
+                ["hyprctl", "dispatch", f'hl.dsp.focus({{ workspace = "{workspace}" }})'],
+                capture_output=True, text=True, timeout=5
+            )
+            return f"Me moví al workspace {workspace}. IMPORTANTE: Confirma brevemente al usuario."
+        except Exception as e:
+            return f"Error al cambiar de workspace: {e}"
+
+    # ── move_window ─────────────────────────────────────────────────────────
+    if action == "move_window":
+        if workspace is None:
+            return "Error: debes indicar el workspace de destino."
+        if not window_query:
+            return "Error: debes indicar el nombre de la ventana (clase o título) que quieres mover."
+
+        # Buscar la ventana en la lista de clientes para encontrar la mejor coincidencia
+        try:
+            result = subprocess.run(
+                ["hyprctl", "clients", "-j"],
+                capture_output=True, text=True, timeout=5
+            )
+            import json
+            clients = json.loads(result.stdout)
+        except Exception as e:
+            return f"Error obteniendo lista de ventanas: {e}"
+
+        query_lower = window_query.lower()
+        matched = None
+        match_type = None
+
+        for c in clients:
+            cls   = c.get("class", "").lower()
+            title = c.get("title", "").lower()
+            if query_lower in cls:
+                matched    = c
+                match_type = "class"
+                break
+            if query_lower in title:
+                matched    = c
+                match_type = "title"
+
+        if not matched:
+            return (
+                f"No encontré ninguna ventana que coincida con '{window_query}'.\n"
+                "Usa la acción 'list_windows' para ver las ventanas abiertas."
+            )
+
+        matched_class = matched.get("class", "")
+        matched_title = matched.get("title", "")
+        current_ws    = matched.get("workspace", {}).get("id", "?")
+
+        # Construir el identificador para Hyprland
+        if match_type == "class":
+            window_id = f"class:{matched_class}"
+        else:
+            window_id = f"title:{matched_title}"
+
+        # Dispatch usando la nueva API Lua 0.56
+        dispatch_cmd = f'hl.dsp.window.move({{ workspace = {workspace}, window = "{window_id}" }})'
+        try:
+            subprocess.run(
+                ["hyprctl", "dispatch", dispatch_cmd],
+                capture_output=True, text=True, timeout=5
+            )
+            display_name = matched_class or matched_title
+            return (
+                f"Moví '{display_name}' del workspace {current_ws} al workspace {workspace}. "
+                "IMPORTANTE: Confirma brevemente al usuario."
+            )
+        except Exception as e:
+            return f"Error moviendo la ventana: {e}"
+
+    return f"Acción desconocida: '{action}'. Usa 'switch_workspace', 'move_window' o 'list_windows'."
