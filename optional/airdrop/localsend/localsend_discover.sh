@@ -1,6 +1,12 @@
 #!/bin/bash
 # LocalSend discovery: UDP multicast + HTTP subnet scan fallback
 
+CERT_DIR="/tmp/localsend_discover"
+mkdir -p "$CERT_DIR"
+if [ ! -f "$CERT_DIR/cert.pem" ]; then
+    openssl req -x509 -newkey rsa:2048 -keyout "$CERT_DIR/key.pem" -out "$CERT_DIR/cert.pem" -days 365 -nodes -subj '/CN=localsend-discover' 2>/dev/null
+fi
+
 python3 - <<'EOF'
 import socket, json, time, struct, re, subprocess, asyncio, ssl
 
@@ -75,6 +81,10 @@ prefix = '.'.join(lan_ip.split('.')[:3])
 ctx = ssl.create_default_context()
 ctx.check_hostname = False
 ctx.verify_mode = ssl.CERT_NONE
+try:
+    ctx.load_cert_chain('/tmp/localsend_discover/cert.pem', '/tmp/localsend_discover/key.pem')
+except Exception:
+    pass
 
 async def probe(ip):
     if ip in local_ips or ip in seen:
