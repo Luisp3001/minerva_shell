@@ -52,7 +52,7 @@ def get_relevant_tools(prompt: str, top_k: int = 10) -> list:
     para cualquier pregunta sobre tareas, fechas o recordatorios.
     """
     # Tools que siempre deben estar disponibles independientemente del RAG
-    _ALWAYS_INCLUDE = {"manage_tasks", "read_pdf", "read_docx", "read_pptx", "read_excel", "create_docx", "modify_docx", "query_document"}
+    _ALWAYS_INCLUDE = {"manage_tasks", "read_pdf", "read_docx", "read_pptx", "read_excel", "create_docx", "modify_docx", "query_document", "run_command"}
 
     if not _tool_collection or not prompt.strip():
         return OLLAMA_TOOLS

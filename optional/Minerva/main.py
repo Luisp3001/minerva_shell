@@ -323,7 +323,7 @@ def main():
         elif msg_type == "run_confirmed":
             job_id = msg.get("job_id", "")
             job    = job_mgr.get(job_id)
-            if not job:
+            if not job or job.status != "queued":
                 continue
             emit({"type": "command_start", "job_id": job_id, "command": job.command})
             _run_command_async(job)
@@ -332,7 +332,7 @@ def main():
         elif msg_type == "run_sudo":
             job_id = msg.get("job_id", "")
             job    = job_mgr.get(job_id)
-            if not job:
+            if not job or job.status != "queued":
                 continue
             emit({"type": "command_start", "job_id": job_id, "command": job.command})
             _run_command_async(job)

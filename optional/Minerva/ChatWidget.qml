@@ -225,9 +225,6 @@ Item {
                     cmdStatus: "running", needsConfirm: false, needsSudo: false, isSystem: false
                 })
                 scrollToBottom()
-                if (root.aiWidget && msg.command) {
-                    root.aiWidget.confirmRun(msg.command, msg.job_id || "")
-                }
                 break
             case "confirm_required":
                 addCmdCard(msg.command || "", msg.job_id || "", true, false)
