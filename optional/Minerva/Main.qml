@@ -281,6 +281,7 @@ Item {
             case "run_command":
                 isThinking = false
                 _updateMinervaState()
+                confirmRun(msg.command || "", msg.job_id || "")
                 break
             case "confirm_required":
             case "sudo_required":

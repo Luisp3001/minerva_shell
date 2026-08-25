@@ -9,8 +9,17 @@ import pathlib
 import sys
 from dotenv import load_dotenv
 
-# Cargar variables de entorno desde .env
-load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+# ─────────────────────────────────────────────────────────────────────────────
+# Directorio de configuración unificado: ~/.config/minerva
+# ─────────────────────────────────────────────────────────────────────────────
+_HOME_EARLY = str(pathlib.Path.home())
+MINERVA_CONFIG_DIR = os.path.join(_HOME_EARLY, ".config", "minerva")
+
+# Cargar variables de entorno desde ~/.config/minerva/.env
+# Fallback al .env antiguo (backend/.env) para compatibilidad durante la transición
+_env_primary  = os.path.join(MINERVA_CONFIG_DIR, ".env")
+_env_fallback = os.path.join(os.path.dirname(__file__), "..", ".env")
+load_dotenv(_env_primary if os.path.exists(_env_primary) else _env_fallback)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Configuración base
@@ -21,9 +30,9 @@ MAX_FILE = 8_192   # 8 KiB máx por lectura de archivo
 MAX_DIR  = 4_096   # 4 KiB máx por listado de directorio
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Spotify
+# Spotify  (ahora dentro de ~/.config/minerva/)
 # ─────────────────────────────────────────────────────────────────────────────
-SPOTIFY_CONFIG_DIR = os.path.join(HOME, ".config", "spotify_minerva")
+SPOTIFY_CONFIG_DIR = MINERVA_CONFIG_DIR
 SPOTIFY_CREDS_FILE = os.path.join(SPOTIFY_CONFIG_DIR, "credentials.json")
 SPOTIFY_TOKEN_FILE = os.path.join(SPOTIFY_CONFIG_DIR, "token_cache.json")
 SPOTIFY_API_BASE   = "https://api.spotify.com/v1"

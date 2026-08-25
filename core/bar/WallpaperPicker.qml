@@ -27,11 +27,6 @@ Item {
         }
     }
 
-    property var watcherProcess: Process {
-        command: ["bash", Quickshell.env("HOME") + "/.config/minerva_shell/core/bar/wallpaper_watcher.sh"]
-        running: true
-    }
-
     property var loadTagsProcess: Process {
         command: ["cat", Quickshell.env("HOME") + "/.cache/wallpaper/tags.json"]
         running: false

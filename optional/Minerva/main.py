@@ -52,7 +52,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from backend.core.config        import MODEL, HOME
 from backend.core.io            import emit, emit_error
 from backend.core.voice         import voice_mgr, VOICE_AVAILABLE
-from backend.core.memory        import memory_collection, MEMORY_AVAILABLE, get_memory_context
+from backend.core.memory        import get_memory_context
 from backend.core.ollama_engine import do_chat
 from backend.core.gemini_engine import do_chat_gemini
 from backend.core.job_manager   import job_mgr, CommandJob
@@ -283,10 +283,10 @@ def main():
             if settings.get("tts_provider", "piper") == "fish":
                 system_prompt_with_date += FISH_AUDIO_EMOTION_PROMPT
 
-            # Inyectar memorias relevantes al system prompt
-            memories = get_memory_context(text)
+            # Inyectar memoria permanente (user_profile.md + preferences.md)
+            memories = get_memory_context()
             if memories:
-                system_prompt_with_date += f"\n\n## Recuerdos relevantes a largo plazo:\n- {memories}"
+                system_prompt_with_date += f"\n\n## Memoria del usuario\n{memories}"
 
             # Inyectar tareas pendientes proactivamente
             try:
@@ -323,7 +323,7 @@ def main():
         elif msg_type == "run_confirmed":
             job_id = msg.get("job_id", "")
             job    = job_mgr.get(job_id)
-            if not job:
+            if not job or job.status != "queued":
                 continue
             emit({"type": "command_start", "job_id": job_id, "command": job.command})
             _run_command_async(job)
@@ -332,7 +332,7 @@ def main():
         elif msg_type == "run_sudo":
             job_id = msg.get("job_id", "")
             job    = job_mgr.get(job_id)
-            if not job:
+            if not job or job.status != "queued":
                 continue
             emit({"type": "command_start", "job_id": job_id, "command": job.command})
             _run_command_async(job)

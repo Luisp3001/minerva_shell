@@ -2,20 +2,17 @@
 # -*- coding: utf-8 -*-
 """
 Herramienta de memoria a largo plazo para Minerva.
-Guarda hechos en ChromaDB para recuperarlos en futuras sesiones.
+Actualiza secciones específicas en user_profile.md y preferences.md.
 """
-import uuid
-
-from ..core.memory import memory_collection, MEMORY_AVAILABLE
+from ..core.memory import update_memory_section
 
 
-def tool_memorize_fact(fact: str) -> str:
-    """Guarda un hecho o preferencia del usuario en la memoria permanente (ChromaDB)."""
-    if not MEMORY_AVAILABLE:
-        return "Error: Base de datos de memoria no disponible."
-    try:
-        doc_id = str(uuid.uuid4())
-        memory_collection.add(documents=[fact], ids=[doc_id])
-        return f"Recuerdo guardado exitosamente: '{fact}'"
-    except Exception as e:
-        return f"Error al guardar recuerdo: {e}"
+def tool_update_memory(file_key: str, section: str, content: str) -> str:
+    """Actualiza una sección de la memoria permanente de Minerva.
+
+    Args:
+        file_key: Archivo de destino: 'profile' (datos del usuario) o 'preferences' (preferencias).
+        section:  Nombre de la sección a crear o actualizar (ej: 'Lenguajes de Programación').
+        content:  Información a guardar en esa sección. Puede ser texto libre o una lista con guiones.
+    """
+    return update_memory_section(file_key, section, content)
