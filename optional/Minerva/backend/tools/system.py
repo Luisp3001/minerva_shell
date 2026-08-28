@@ -8,6 +8,7 @@ import subprocess
 import pathlib
 
 from ..core.config import HOME, WEB_SEARCH_AVAILABLE
+from ..core.job_manager import job_mgr
 
 
 def tool_web_search(query: str, max_results: int = 5) -> str:
@@ -252,3 +253,47 @@ def tool_hyprland_control(action: str, workspace: int | None = None, window_quer
             return f"Error moviendo la ventana: {e}"
 
     return f"Acción desconocida: '{action}'. Usa 'switch_workspace', 'move_window' o 'list_windows'."
+
+
+def tool_check_job_status(job_id: str = "") -> str:
+    """
+    Consulta el estado de comandos en segundo plano registrados en el JobManager.
+
+    - Si se indica job_id, devuelve info detallada de ese job específico.
+    - Si no se indica (o job_id == ""), lista todos los jobs registrados.
+    """
+    if job_id:
+        job = job_mgr.get(job_id)
+        if not job:
+            return f"No se encontró ningún comando con job_id '{job_id}'. Puede haber sido eliminado ya del registro."
+        lines = [
+            f"Job ID:      {job.job_id}",
+            f"Comando:     {job.command}",
+            f"Estado:      {job.status}",
+            f"Código ret.: {job.returncode}",
+        ]
+        if job.output:
+            truncated = job.output[:1500]
+            lines.append(f"Salida:\n{truncated}")
+            if len(job.output) > 1500:
+                lines.append(f"... (salida truncada, {len(job.output)} caracteres totales)")
+        else:
+            lines.append("Salida:      (vacía aún)")
+        return "\n".join(lines)
+
+    # Listar todos los jobs
+    all_jobs = job_mgr.get_all_jobs()
+    if not all_jobs:
+        return "No hay comandos registrados en este momento. Ningún comando ha sido ejecutado en esta sesión todavía."
+
+    lines = [f"Comandos en segundo plano registrados ({len(all_jobs)} total):\n"]
+    for j in all_jobs:
+        in_turn = " [turno activo]" if j["in_turn"] else ""
+        lines.append(f"  • [{j['status'].upper()}]{in_turn} job_id={j['job_id']}  →  {j['command']}")
+        if j["status"] in ("completed", "failed"):
+            rc_str = f"  returncode={j['returncode']}"
+            out_preview = j["output"][:200].replace("\n", " ") if j["output"] else "(sin salida)"
+            lines.append(f"    {rc_str}")
+            lines.append(f"    Salida: {out_preview}")
+        lines.append("")
+    return "\n".join(lines).strip()

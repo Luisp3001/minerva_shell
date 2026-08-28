@@ -18,7 +18,7 @@ from .filesystem    import (
     tool_read_pptx, tool_read_excel, tool_file_info, tool_write_file,
     tool_replace_lines, tool_create_docx, tool_modify_docx, tool_query_document
 )
-from .system        import tool_web_search, tool_launch_app, tool_hyprland_control
+from .system        import tool_web_search, tool_launch_app, tool_hyprland_control, tool_check_job_status
 from .spotify       import tool_spotify_music
 from .memory_tool   import tool_update_memory
 from .screen        import tool_capture_screen, ScreenCapture
@@ -52,7 +52,7 @@ def get_relevant_tools(prompt: str, top_k: int = 10) -> list:
     para cualquier pregunta sobre tareas, fechas o recordatorios.
     """
     # Tools que siempre deben estar disponibles independientemente del RAG
-    _ALWAYS_INCLUDE = {"manage_tasks", "read_pdf", "read_docx", "read_pptx", "read_excel", "create_docx", "modify_docx", "query_document", "run_command"}
+    _ALWAYS_INCLUDE = {"manage_tasks", "read_pdf", "read_docx", "read_pptx", "read_excel", "create_docx", "modify_docx", "query_document", "run_command", "check_job_status"}
 
     if not _tool_collection or not prompt.strip():
         return OLLAMA_TOOLS
@@ -246,6 +246,9 @@ def dispatch_tool(tool_name: str, args: dict, tool_call_id: str = "") -> "str | 
             workspace    = ws,
             window_query = args.get("window_query", "") or None,
         )
+
+    elif tool_name == "check_job_status":
+        return tool_check_job_status(job_id=args.get("job_id", ""))
 
     else:
         return "Herramienta desconocida"

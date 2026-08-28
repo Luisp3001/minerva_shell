@@ -120,6 +120,11 @@ class JobManager:
         with self._lock:
             return list(self._turn_job_ids)
 
+    def is_turn_job(self, job_id: str) -> bool:
+        """True si job_id pertenece al turno activo actual."""
+        with self._lock:
+            return job_id in self._turn_job_ids
+
     def all_turn_finished(self) -> bool:
         """True cuando todos los jobs del turno actual están en estado terminal."""
         with self._lock:
@@ -130,11 +135,43 @@ class JobManager:
         return True
 
     def clear_turn(self) -> None:
-        """Limpia el turno actual y elimina sus jobs del registro."""
+        """Limpia el turno actual y elimina sus jobs del registro (usar solo cuando ya completaron)."""
         with self._lock:
             for jid in self._turn_job_ids:
                 self._jobs.pop(jid, None)
             self._turn_job_ids = []
+
+    def detach_turn(self) -> None:
+        """
+        Desacopla el turno activo sin borrar los jobs del registro.
+
+        Usar cuando el usuario empieza una nueva conversación mientras hay jobs
+        pendientes: los jobs quedan vivos en _jobs (accesibles via check_job_status
+        y _internal_cmd_done), pero ya no pertenecen al turno activo, por lo que
+        no dispararán una re-invocación del LLM al completar.
+        """
+        with self._lock:
+            self._turn_job_ids = []
+
+    # ── Inspección ───────────────────────────────────────────────────────────
+
+    def get_all_jobs(self) -> list:
+        """
+        Devuelve una lista de snapshots (dicts) de todos los jobs registrados.
+        Útil para que la herramienta check_job_status muestre el estado al LLM.
+        """
+        with self._lock:
+            return [
+                {
+                    "job_id":     job.job_id,
+                    "command":    job.command,
+                    "status":     job.status,
+                    "returncode": job.returncode,
+                    "output":     job.output[:1024] if job.output else "",  # truncar para el prompt
+                    "in_turn":    job.job_id in self._turn_job_ids,
+                }
+                for job in self._jobs.values()
+            ]
 
 
 # ── Singleton global ──────────────────────────────────────────────────────────
