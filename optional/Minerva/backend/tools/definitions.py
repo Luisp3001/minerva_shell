@@ -24,7 +24,7 @@ SYSTEM_PROMPT = f"""Eres Minerva, una asistente inteligente integrada en el escr
 
 ## Herramientas disponibles
 - **Filesystem**: Puedes listar directorios (list_dir), leer archivos (read_file, read_pdf, read_docx, read_pptx, read_excel), inspeccionar metadatos (file_info), crear/sobreescribir archivos (write_file), crear documentos Word desde markdown (create_docx), modificar documentos Word añadiendo texto (modify_docx) y editar líneas específicas (replace_lines) dentro de {HOME}. IMPORTANTE: NUNCA uses comandos bash para leer o escribir archivos PDF, DOCX, PPTX o EXCEL; usa SIEMPRE las herramientas específicas (read_pdf, read_docx, create_docx, modify_docx, etc.). Para archivos grandes de texto, primero usa file_info para conocer el total de líneas, luego lee con read_file en bloques (start_line, end_line) de hasta 200 líneas. Usa replace_lines para ediciones quirúrgicas sin reescribir el archivo completo. Si intentas leer o editar más allá del final del archivo, recibirás una señal [EOF]. Para buscar información concreta dentro de un PDF/DOCX/PPTX/MD/TXT largo sin leerlo completo, usa query_document con una pregunta específica (RAG efímero); NO lo uses con Excel/CSV, esos siempre van con read_excel.
-- **Comandos**: Puedes ejecutar comandos bash (run_command). Los destructivos o con sudo pedirán confirmación.
+- **Comandos**: Puedes ejecutar comandos bash (run_command). Los destructivos o con sudo pedirán confirmación. Los comandos se ejecutan en segundo plano de forma asíncrona y puedes usar check_job_status para consultar su estado, salida y código de retorno en cualquier momento.
 - **Búsqueda web** (web_search): Tienes acceso a internet en tiempo real. Úsala cuando:
   - El usuario pregunte por noticias, eventos recientes o información que puede haber cambiado.
   - Necesites precios, versiones de software, estadísticas actuales, o cualquier dato perecedero.
@@ -63,6 +63,10 @@ SYSTEM_PROMPT = f"""Eres Minerva, una asistente inteligente integrada en el escr
   - "complete": Marcar como completada. Requiere "task_id".
   - "list": Listar tareas pendientes con su due_date, recurrencia, day y month. USA ESTA ACCION SIEMPRE que el usuario pregunte por sus tareas, pendientes, "¿cuánto falta para X?", "¿cuándo es el próximo cobro?", "¿qué tengo pendiente?", o cualquier pregunta sobre fechas de vencimiento. NO uses run_command ni web_search para responder sobre tareas.
   - El sistema te inyectará automáticamente las tareas pendientes en tu prompt, así que **puedes ser proactiva** y recordarle al usuario sus tareas de manera casual si es un buen momento.
+- **Estado de comandos en segundo plano** (check_job_status): Consulta el estado y salida de comandos bash ejecutados con run_command. Úsala cuando:
+  - El usuario pregunte "¿cómo va el comando?", "¿terminó el sleep?", "¿hay algo corriendo?", "¿qué pasó con la descarga?", o similar.
+  - Quieras comprobar el resultado de un comando reciente antes de responder algo.
+  - Si no sabes el job_id, llámala sin argumentos para listar todos los comandos registrados en esta sesión.
 
 ## Reglas de seguridad
 - Solo puedes acceder a archivos dentro de {HOME}
@@ -573,6 +577,22 @@ OLLAMA_TOOLS = [
                     }
                 },
                 "required": ["action"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "check_job_status",
+            "description": "Consulta el estado y la salida de comandos bash ejecutados en segundo plano (run_command). Úsala cuando el usuario pregunte '¿cómo va el comando?', '¿terminó?', '¿qué está corriendo?', '¿hay procesos en curso?', o cuando necesites saber el resultado de un run_command reciente. Si no tienes el job_id, llámala sin argumentos para ver todos los comandos de la sesión.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "job_id": {
+                        "type": "string",
+                        "description": "ID del job a consultar (formato: 8 caracteres hexadecimales, ej: 'a3f7c2e1'). Si se omite, se listan todos los comandos registrados en la sesión."
+                    }
+                }
             }
         }
     }

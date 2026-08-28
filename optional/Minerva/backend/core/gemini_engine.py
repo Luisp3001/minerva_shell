@@ -22,6 +22,43 @@ from ..tools.screen import ScreenCapture
 _GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
 
 
+def _sanitize_history(history: list) -> list:
+    """
+    Limpia el historial antes de enviarlo a la API de Gemini para evitar:
+      - Error 400 'Name cannot be empty': mensajes role='tool' sin campo name.
+      - Error 400 por tool-responses huérfanas (sin el assistant tool_call correspondiente).
+
+    Reglas:
+      1. Recopilar todos los tool_call_ids referenciados en mensajes role='assistant'.
+      2. Eliminar mensajes role='tool' cuyo tool_call_id no esté en ese set (huérfanos).
+      3. Si un mensaje role='tool' no tiene 'name' (o está vacío), rellenarlo con 'run_command'.
+    """
+    # Paso 1: recopilar IDs válidos de tool_calls en mensajes assistant
+    valid_tc_ids: set = set()
+    for msg in history:
+        if msg.get("role") == "assistant":
+            for tc in msg.get("tool_calls", []):
+                tc_id = tc.get("id", "")
+                if tc_id:
+                    valid_tc_ids.add(tc_id)
+
+    # Paso 2 y 3: filtrar y reparar mensajes role='tool'
+    sanitized = []
+    for msg in history:
+        if msg.get("role") == "tool":
+            tc_id = msg.get("tool_call_id", "")
+            # Descartar huérfanos (solo si hay IDs conocidos; si no hay ninguno,
+            # dejamos pasar para no romper sesiones simples sin tool_calls en el historial)
+            if valid_tc_ids and tc_id not in valid_tc_ids:
+                continue
+            # Garantizar que 'name' no esté vacío
+            if not msg.get("name"):
+                msg = dict(msg)
+                msg["name"] = "run_command"
+        sanitized.append(msg)
+    return sanitized
+
+
 def _split_concatenated_calls(raw_name: str, raw_args: str, known_names: set) -> list:
     """
     Gemini 2.5-flash con thinking a veces fusiona múltiples tool_calls en uno solo,
@@ -118,7 +155,7 @@ def do_chat_gemini(
         stripper           = StreamEmotionStripper()
 
         clean_history = []
-        for msg in history:
+        for msg in _sanitize_history(history):
             clean_msg = {k: v for k, v in msg.items() if k in _valid_keys}
             if "image_b64" in msg:
                 clean_msg["content"] = [

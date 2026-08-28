@@ -305,6 +305,13 @@ def main():
 
             current_history = [{"role": "system", "content": system_prompt_with_date}]
             current_history.extend(hist)
+
+            # Desacoplar (no eliminar) los jobs del turno anterior: si el usuario
+            # empieza una nueva conversación mientras un job sigue corriendo, no
+            # queremos que su resultado contamine este historial cuando termine,
+            # pero tampoco queremos borrar el job del registro (check_job_status
+            # debe poder encontrarlo y _internal_cmd_done debe poder notificar a la UI).
+            job_mgr.detach_turn()
             
             user_msg = {"role": "user", "content": text}
             if image and os.path.exists(image):
@@ -348,10 +355,10 @@ def main():
             if not job:
                 continue
 
-            # Actualizar estado del job
+            # Actualizar estado del job en el registro
             job_mgr.set_result(job_id, out, returncode, success)
 
-            # Notificar al frontend
+            # Notificar al frontend siempre (para que la UI actualice el card del comando)
             emit({
                 "type":       "command_result",
                 "job_id":     job_id,
@@ -360,6 +367,16 @@ def main():
                 "returncode": returncode,
                 "success":    success
             })
+
+            # Solo inyectar el resultado en el historial y retomar el chat
+            # si el job pertenece al turno activo actual.
+            # Si el usuario ya envió otro mensaje y el turno fue desacoplado,
+            # saltamos la inyección para evitar mensajes role='tool' huérfanos
+            # (que causan el error 400 'Name cannot be empty' en la API de Gemini).
+            if not job_mgr.is_turn_job(job_id):
+                # Job de un turno anterior; resultado ya guardado en job_mgr.
+                # El agente puede consultarlo con check_job_status si lo necesita.
+                continue
 
             # Añadir resultado al historial con el tool_call_id correcto
             if job.tool_call_id:
@@ -384,6 +401,10 @@ def main():
                 continue
 
             job_mgr.cancel(job_id)
+
+            # Solo inyectar cancelación si el job pertenece al turno activo
+            if not job_mgr.is_turn_job(job_id):
+                continue
 
             # Añadir al historial que el comando fue cancelado
             if job.tool_call_id:
