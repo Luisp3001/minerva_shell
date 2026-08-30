@@ -13,7 +13,7 @@ El nombre viene de la diosa romana de la sabiduría.
 - **Ejecución de comandos asíncrona:** Coordinada vía `JobManager` thread-safe con rastreo por `job_id`, turnos multi-comando y streaming de salida en tiempo real — no se congela mientras espera.
 - **Sistema de voz completo:** Wake word ("Minerva"), STT (Whisper), TTS dual (Piper local o Fish Audio en la nube con soporte de **Emotion Tags**) y detección de silencio.
 - **SiriOrb:** Visualización animada por GPU (fragment shader) que reacciona al audio en tiempo real con RMS y 4 bandas FFT.
-- **Memoria a largo plazo:** ChromaDB vectorial para recordar preferencias y contexto entre sesiones.
+- **Memoria a largo plazo:** Archivos Markdown (user_profile.md y preferences.md) para almacenar el perfil del usuario y sus preferencias entre sesiones.
 - **Proactividad (Tareas):** Conexión a PostgreSQL para gestionar tareas con alertas visuales sutiles en el SiriOrb. Soporta **tareas recurrentes** (diaria, semanal, mensual, anual con `recurrence_month`) con auto-renovación en segundo plano.
 - **Herramientas de archivos avanzadas:** Lectura inteligente por rangos de líneas (`read_file`), metadatos (`file_info`), creación directa (`write_file`), edición quirúrgica (`replace_lines`) y conversión a Markdown para PDF, Word (.docx), PowerPoint (.pptx) y Excel/CSV (.xlsx/.csv).
 - **Tool RAG:** Selección inteligente de herramientas relevantes vía embedding semántico para no saturar el contexto.
@@ -101,9 +101,8 @@ optional/Minerva/
     │   │                        #   - Suavizado exponencial
     │   │                        #   - Ventana Hann para reducir spectral leakage
     │   │                        #   - Alimenta los uniforms del shader SiriOrb
-    │   ├── memory.py            # ChromaDB: cliente persistente
-    │   │                        #   - Colección minerva_memory (memoria a largo plazo)
-    │   │                        #   - get_memory_context() para inyección en system prompt
+    │   ├── memory.py            # Lectura de archivos Markdown (user_profile.md / preferences.md)
+    │   │                        #   - get_memory_context() para inyección en el system prompt
     │   └── tasks_db.py          # Conexión a PostgreSQL (CRUD de tareas + recurrencia):
     │                            #   - init_db(): crea tabla y agrega columnas recurrence/recurrence_day/recurrence_month
     │                            #   - add_task(): inserta tarea; si es recurrente y no tiene due_date,
@@ -126,7 +125,7 @@ optional/Minerva/
         ├── spotify.py           # spotify_music: OAuth2 completo, control de reproducción
         ├── screen.py            # capture_screen: grim → base64 → multimodal
         ├── memory_tool.py       # memorize_fact: guarda hechos en ChromaDB
-        └── tasks.py             # manage_tasks: Gestiona tareas en PostgreSQL
+        └── tasks.py             # manage_tasks: Gestiona tareas en archivos markdown ordenados
                                  #   - Acciones: add, complete, list
                                  #   - Soporte de recurrence ('daily','weekly','monthly','yearly'),
                                  #     recurrence_day y recurrence_month
