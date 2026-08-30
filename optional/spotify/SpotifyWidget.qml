@@ -172,10 +172,8 @@ Item {
                         antialiasing: true
                         maskSource: discMask
                     }
-                }
 
-                // Borde sutil del vinilo
-                Rectangle {
+                    Rectangle {
                     anchors.centerIn: parent
                     width: 100
                     height: 100
@@ -186,6 +184,10 @@ Item {
                     opacity: root.isPlaying ? 0.3 : 0.1
                     Behavior on opacity { NumberAnimation { duration: 400 } }
                 }
+                }
+
+                // Borde sutil del vinilo
+               
 
                 // Glow suave cuando reproduciendo
                 Rectangle {
