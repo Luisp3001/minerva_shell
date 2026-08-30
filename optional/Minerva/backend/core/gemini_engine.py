@@ -122,7 +122,7 @@ def _split_concatenated_calls(raw_name: str, raw_args: str, known_names: set) ->
 
 def do_chat_gemini(
     history:     list,
-    max_iters:   int   = 6,
+    max_iters:   int   = 30,
     model:       str   = "gemini-2.5-flash",
     api_key:     str   = "",
     temperature: float = 0.7,
@@ -147,6 +147,8 @@ def do_chat_gemini(
 
     # Claves válidas para la API OpenAI-compatible de Gemini
     _valid_keys = {"role", "content", "tool_calls", "tool_call_id", "name"}
+    
+    tool_error_counts = {}
 
     for _iteration in range(max_iters):
         full_response      = ""
@@ -353,13 +355,21 @@ def do_chat_gemini(
                     "image_b64": result.b64
                 })
             else:
+                result_str = str(result) if result is not None else "OK"
                 emit({"type": "tool_result", "tool": tool_name, "result": result})
                 history.append({
                     "role":         "tool",
                     "tool_call_id": tc_id,
                     "name":         tool_name,
-                    "content":      str(result) if result is not None else "OK"
+                    "content":      result_str
                 })
+
+                if result_str.strip().lower().startswith("error") or result_str.strip().lower().startswith("acceso denegado"):
+                    call_key = (tool_name, json.dumps(args, sort_keys=True))
+                    tool_error_counts[call_key] = tool_error_counts.get(call_key, 0) + 1
+                    if tool_error_counts[call_key] >= 3:
+                        emit_error(f"Bucle detectado: la herramienta '{tool_name}' falló 3 veces seguidas. Operación abortada.")
+                        return
 
         if pending_jobs:
             # Registrar el turno en el job manager; main.py retomará cuando todos terminen.
@@ -367,4 +377,4 @@ def do_chat_gemini(
             return
         # Si no hubo run_command, continuar la iteración agentic normalmente
 
-    emit_error("Demasiadas iteraciones de herramientas (límite: 6)")
+    emit_error(f"Demasiadas iteraciones de herramientas (límite: {max_iters})")

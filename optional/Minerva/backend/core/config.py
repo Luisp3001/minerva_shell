@@ -26,7 +26,7 @@ load_dotenv(_env_primary if os.path.exists(_env_primary) else _env_fallback)
 # ─────────────────────────────────────────────────────────────────────────────
 MODEL    = "gemma4:e4b"
 HOME     = str(pathlib.Path.home())
-MAX_FILE = 8_192   # 8 KiB máx por lectura de archivo
+
 MAX_DIR  = 4_096   # 4 KiB máx por listado de directorio
 
 # ─────────────────────────────────────────────────────────────────────────────

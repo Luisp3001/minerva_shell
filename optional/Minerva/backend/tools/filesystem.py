@@ -10,7 +10,7 @@ import pathlib
 import shutil
 import subprocess
 
-from ..core.config import HOME, MAX_FILE, MAX_DIR
+from ..core.config import HOME, MAX_DIR
 from ..core.io import is_safe_path
 
 
@@ -152,8 +152,6 @@ def _read_with_markitdown(path: str, file_type: str) -> str:
         result = md.convert(exp)
         text = result.text_content
         
-        if text and len(text) > MAX_FILE:
-            text = text[:MAX_FILE] + f"\n\n[... truncado: mostrando {MAX_FILE} de {len(text)} bytes ...]"
         return text if text else f"[El archivo {file_type} está vacío o no se pudo extraer texto]"
     except Exception as e:
         return f"Error leyendo {file_type}: {e}"
