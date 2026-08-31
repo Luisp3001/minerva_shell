@@ -210,7 +210,7 @@ def do_chat_gemini(
                         if VOICE_AVAILABLE and not voice_mgr.tts_stop_event.is_set():
                             if re.search(r'[.!?\n:]', token) and len(buffer_frase.strip()) > 5:
                                 clean_frase = buffer_frase.replace("*", "").replace("#", "").strip()
-                                if clean_frase:
+                                if clean_frase and not ("![" in clean_frase or clean_frase in ["png)", "jpg)", "jpeg)"]):
                                     voice_mgr.tts_queue.put(clean_frase)
                                 buffer_frase = ""
 
@@ -334,7 +334,7 @@ def do_chat_gemini(
 
             tc_id = tc.get("id", "")
             emit({"type": "tool_start", "tool": tool_name, "args": args})
-            result = dispatch_tool(tool_name, args, tool_call_id=tc_id)
+            result = dispatch_tool(tool_name, args, tool_call_id=tc_id, api_key=api_key)
 
             if isinstance(result, CommandJob):
                 # run_command pendiente — acumular y continuar con el resto

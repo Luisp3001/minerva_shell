@@ -335,6 +335,7 @@ Item {
         if (t === "query_document") return "󰈙  Consultando documento…"
         if (t === "launch_app") return "󰀨  Lanzando aplicación…"
         if (t === "file_info") return "󰋽  Consultando metadatos…"
+        if (t === "generate_image") return "󰹑  Generando imagen…"
         return "󰏗  Usando herramienta…"
     }
 
@@ -607,26 +608,47 @@ Item {
                                 id: _aiBubble
                                 // Ancho fijo: evita el re-layout costoso de
                                 // implicitWidth cuando wrapMode está activo.
-                                implicitHeight: _aiTxt.implicitHeight + 18
+                                implicitHeight: _aiCol.implicitHeight + 18
                                 width: msgDelegate.width * 0.92
                                 anchors.left: parent.left
                                 radius: 16
                                 color: Qt.rgba(1, 1, 1, 0.07)
                                 border.width: 1
                                 border.color: Qt.rgba(1, 1, 1, 0.09)
-                                TextEdit {
-                                    id: _aiTxt
+                                
+                                Column {
+                                    id: _aiCol
                                     anchors.centerIn: parent
                                     width: parent.width - 30
-                                    text: model.content
-                                        + (root.aiWidget && root.aiWidget.streamingIdx === index && root.aiWidget.isThinking ? "▋" : "")
-                                    font.family: Theme.fontSans
-                                    font.pixelSize: 13
-                                    color: Theme.textPrimary
-                                    wrapMode: TextEdit.Wrap
-                                    textFormat: TextEdit.PlainText
-                                    readOnly: true
-                                    selectByMouse: true
+                                    spacing: 8
+                                    
+                                    Image {
+                                        width: parent.width
+                                        fillMode: Image.PreserveAspectFit
+                                        property string imgPath: {
+                                            var match = model.content.match(/!\[.*?\]\((.*?)\)/);
+                                            return match ? "file://" + match[1] : "";
+                                        }
+                                        source: imgPath
+                                        visible: imgPath !== ""
+                                    }
+                                    
+                                    TextEdit {
+                                        id: _aiTxt
+                                        width: parent.width
+                                        text: {
+                                            var cleanText = model.content.replace(/!\[.*?\]\(.*?\)/g, "").trim();
+                                            return cleanText + (root.aiWidget && root.aiWidget.streamingIdx === index && root.aiWidget.isThinking ? "▋" : "")
+                                        }
+                                        font.family: Theme.fontSans
+                                        font.pixelSize: 13
+                                        color: Theme.textPrimary
+                                        wrapMode: TextEdit.Wrap
+                                        textFormat: TextEdit.PlainText
+                                        readOnly: true
+                                        selectByMouse: true
+                                        visible: text !== "" || !parent.children[0].visible
+                                    }
                                 }
                             }
                         }

@@ -41,6 +41,10 @@ SYSTEM_PROMPT = f"""Eres Minerva, una asistente inteligente integrada en el escr
   - Necesites contexto visual para responder (ej: "que ves en mi pantalla", "que app tengo abierta", "mira esto", "que dice ahi").
   - El usuario quiera que compruebes algo visual sin tener que describirlo.
   - Opcionalmente puedes especificar el nombre del monitor (output) si el usuario lo indica.
+- **Generación de imágenes** (generate_image): Genera una imagen a partir de una descripción usando un modelo.
+  - Usa esto SIEMPRE que el usuario te pida generar, crear, o dibujar una imagen.
+  - Si el usuario menciona una resolución como "2K", pásala al parámetro `resolution`. Por defecto usa "1K".
+  - IMPORTANTE: Cuando uses esta herramienta y te devuelva un código markdown (ej: ![Imagen Generada](/ruta/..)), TIENES QUE INCLUIR esa cadena tal cual en tu respuesta final. De lo contrario el usuario no verá la imagen.
 - **Control de Hyprland** (hyprland_control): Controla el escritorio Hyprland. Úsala cuando el usuario te pida navegar entre workspaces o mover ventanas. Acciones disponibles:
   - "switch_workspace": Ir a un workspace específico. Requiere "workspace" (número 1-10). Ej: "muévete al workspace 2", "cambia al workspace 3".
   - "move_window": Mover una ventana a otro workspace. Requiere "workspace" y "window_query" (nombre de la app, como "Spotify", "firefox", "kitty"). Ej: "mueve Spotify al workspace 1", "pon Firefox en el workspace 4".
@@ -469,6 +473,28 @@ OLLAMA_TOOLS = [
                         "description": "Nombre del monitor Wayland a capturar (ej: 'DP-1', 'HDMI-A-1'). Omite este parámetro para capturar toda la pantalla."
                     }
                 }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "generate_image",
+            "description": "Genera una imagen a partir de un texto (prompt). IMPORTANTE: Si la herramienta te devuelve un código markdown con la imagen (ej: ![Imagen...](/ruta/...)), DEBES incluir esa misma cadena markdown textualmente en tu respuesta final al usuario para que pueda ver la imagen en su pantalla. De lo contrario, no verá nada.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "prompt": {
+                        "type": "string",
+                        "description": "Descripción detallada de la imagen que quieres generar."
+                    },
+                    "resolution": {
+                        "type": "string",
+                        "description": "Resolución de la imagen. Puede ser '1K' o '2K'. Por defecto es '1K'. Si el usuario pide explícitamente alta resolución o 2K, usa '2K'.",
+                        "enum": ["1K", "2K"]
+                    }
+                },
+                "required": ["prompt"]
             }
         }
     },

@@ -81,7 +81,7 @@ RUN_COMMAND_PENDING = _RunCommandPending()
 # ─────────────────────────────────────────────────────────────────────────────
 # Despachador centralizado
 # ─────────────────────────────────────────────────────────────────────────────
-def dispatch_tool(tool_name: str, args: dict, tool_call_id: str = "") -> "str | CommandJob | ScreenCapture":
+def dispatch_tool(tool_name: str, args: dict, tool_call_id: str = "", **kwargs) -> "str | CommandJob | ScreenCapture":
     """
     Ejecuta la herramienta indicada con los argumentos dados.
 
@@ -91,7 +91,15 @@ def dispatch_tool(tool_name: str, args: dict, tool_call_id: str = "") -> "str | 
                       engine debe acumular todos los jobs del turno antes de retornar.
       - ScreenCapture → captura de pantalla; el engine la inyecta como imagen.
     """
-    if tool_name == "list_dir":
+    if tool_name == "generate_image":
+        from .imagen import tool_generate_image
+        return tool_generate_image(
+            prompt=args.get("prompt", ""),
+            resolution=args.get("resolution", "1K"),
+            api_key=kwargs.get("api_key", "")
+        )
+
+    elif tool_name == "list_dir":
         return tool_list_dir(args.get("path", HOME))
 
     elif tool_name == "read_file":
