@@ -270,10 +270,13 @@ def main():
             # Actualizar proveedor TTS si viene en los settings
             if VOICE_AVAILABLE:
                 voice_mgr.set_tts_provider(
-                    provider      = settings.get("tts_provider",  "piper"),
-                    fish_api_key  = settings.get("fish_api_key",  ""),
-                    fish_voice_id = settings.get("fish_voice_id", ""),
-                    fish_model    = settings.get("fish_model",    ""),
+                    provider        = settings.get("tts_provider",     "piper"),
+                    fish_api_key    = settings.get("fish_api_key",     ""),
+                    fish_voice_id   = settings.get("fish_voice_id",    ""),
+                    fish_model      = settings.get("fish_model",       ""),
+                    gemini_api_key  = settings.get("gemini_api_key",   ""),
+                    gemini_tts_voice = settings.get("gemini_tts_voice", ""),
+                    gemini_tts_model = settings.get("gemini_tts_model", ""),
                 )
 
             fecha_actual             = datetime.datetime.now().strftime("%A, %d de %B de %Y, %H:%M")

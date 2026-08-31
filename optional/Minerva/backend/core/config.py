@@ -80,3 +80,9 @@ try:
     FISH_AUDIO_AVAILABLE = True
 except ImportError:
     FISH_AUDIO_AVAILABLE = False
+
+try:
+    from google import genai as _genai  # noqa: F401
+    GEMINI_TTS_AVAILABLE = True
+except ImportError:
+    GEMINI_TTS_AVAILABLE = False

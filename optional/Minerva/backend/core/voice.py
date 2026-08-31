@@ -14,7 +14,7 @@ import tempfile
 import threading
 import time
 
-from .config import VOICE_AVAILABLE, VOSK_AVAILABLE, FISH_AUDIO_AVAILABLE, VOICE_DIR
+from .config import VOICE_AVAILABLE, VOSK_AVAILABLE, FISH_AUDIO_AVAILABLE, GEMINI_TTS_AVAILABLE, VOICE_DIR
 from .io import emit
 from .audio_analyzer import AudioAnalyzer
 
@@ -29,6 +29,10 @@ if VOSK_AVAILABLE:
 
 if FISH_AUDIO_AVAILABLE:
     from fish_audio_sdk import Session as FishSession, TTSRequest
+
+if GEMINI_TTS_AVAILABLE:
+    from google import genai
+    from google.genai import types as genai_types
 
 
 # ── Utilidades de emotion tags ────────────────────────────────────────────────
@@ -143,12 +147,18 @@ class VoiceManager:
         self.piper_voice = None
 
         # ── Proveedor TTS ──────────────────────────────────────────────────────
-        # "piper" (local, sin internet) o "fish" (Fish Audio API, en la nube)
+        # "piper" (local, sin internet) | "fish" (Fish Audio API) | "gemini" (Gemini TTS API)
         self.tts_provider   = "piper"
         self.fish_api_key   = ""
         self.fish_voice_id  = "15e8b140868348538ab2d7d887060e78"
         self.fish_model     = "speech-1.5"  # speech-1.5 | speech-1.6 | s2-pro | s1 | s1-mini | agent-x0
         self._fish_client   = None   # se crea al vuelo cuando se necesita
+
+        # Gemini TTS
+        self.gemini_api_key   = ""
+        self.gemini_tts_voice = "Kore"                    # 30 voces: Kore, Aoede, Puck, Charon, Zephyr, etc.
+        self.gemini_tts_model = "gemini-2.5-flash-tts"    # gemini-2.5-flash-tts | gemini-2.5-pro-tts
+        self._gemini_client   = None
 
         self.tts_queue     = queue.Queue()
         self.play_queue    = queue.Queue()
@@ -184,14 +194,18 @@ class VoiceManager:
 
     # ── Configuración de proveedor TTS ────────────────────────────────────────
 
-    def set_tts_provider(self, provider: str, fish_api_key: str = "", fish_voice_id: str = "", fish_model: str = ""):
+    def set_tts_provider(self, provider: str, fish_api_key: str = "", fish_voice_id: str = "", fish_model: str = "",
+                         gemini_api_key: str = "", gemini_tts_voice: str = "", gemini_tts_model: str = ""):
         """Cambia el proveedor TTS en caliente (sin reiniciar el backend).
 
         Args:
-            provider:      "piper" o "fish"
-            fish_api_key:  API Key de Fish Audio (solo necesaria si provider="fish")
-            fish_voice_id: reference_id del modelo de voz en Fish Audio
-            fish_model:    backend de generación: speech-1.5 | speech-1.6 | s2-pro | s1 | s1-mini | agent-x0
+            provider:         "piper", "fish" o "gemini"
+            fish_api_key:     API Key de Fish Audio (solo necesaria si provider="fish")
+            fish_voice_id:    reference_id del modelo de voz en Fish Audio
+            fish_model:       backend de generación: speech-1.5 | speech-1.6 | s2-pro | s1 | s1-mini | agent-x0
+            gemini_api_key:   API Key de Gemini (solo necesaria si provider="gemini")
+            gemini_tts_voice: Voz de Gemini TTS (Kore, Aoede, Puck, Charon, Zephyr, etc.)
+            gemini_tts_model: Modelo Gemini TTS (gemini-2.5-flash-tts | gemini-2.5-pro-tts)
         """
         self.tts_provider  = provider.lower().strip()
         self.fish_api_key  = fish_api_key
@@ -203,9 +217,24 @@ class VoiceManager:
         # Invalidar el cliente de Fish para que se recree con la nueva API key
         self._fish_client = None
 
+        # Gemini TTS
+        if gemini_api_key:
+            self.gemini_api_key = gemini_api_key
+        if gemini_tts_voice:
+            self.gemini_tts_voice = gemini_tts_voice
+        if gemini_tts_model:
+            self.gemini_tts_model = gemini_tts_model
+        # Invalidar el cliente de Gemini para que se recree con la nueva API key
+        self._gemini_client = None
+
+        extra = ""
+        if self.tts_provider == "fish":
+            extra = f"  model: {self.fish_model!r}  voice_id: {self.fish_voice_id!r}"
+        elif self.tts_provider == "gemini":
+            extra = f"  model: {self.gemini_tts_model!r}  voice: {self.gemini_tts_voice!r}"
+
         print(
-            f"[VoiceManager] TTS provider: {self.tts_provider!r}"
-            + (f"  model: {self.fish_model!r}  voice_id: {self.fish_voice_id!r}" if self.tts_provider == "fish" else ""),
+            f"[VoiceManager] TTS provider: {self.tts_provider!r}{extra}",
             file=sys.stderr
         )
 
@@ -218,6 +247,64 @@ class VoiceManager:
                 raise RuntimeError("Se requiere una API Key de Fish Audio (fishApiKey en la config).")
             self._fish_client = FishSession(apikey=self.fish_api_key)
         return self._fish_client
+
+    # ── TTS (Gemini) ──────────────────────────────────────────────────────────
+
+    def _get_gemini_client(self):
+        """Retorna (o crea) el cliente de Gemini reutilizando la instancia."""
+        if self._gemini_client is None:
+            if not GEMINI_TTS_AVAILABLE:
+                raise RuntimeError("google-genai no está instalado. Ejecuta: pip install google-genai")
+            if not self.gemini_api_key:
+                raise RuntimeError("Se requiere una API Key de Gemini (geminiApiKey en la config).")
+            self._gemini_client = genai.Client(api_key=self.gemini_api_key)
+        return self._gemini_client
+
+    def _synthesize_gemini(self, text: str):
+        """Genera audio con Gemini TTS y lo encola en play_queue.
+
+        Gemini TTS retorna PCM crudo (24kHz, 16-bit, mono) que se convierte
+        directamente a numpy int16 para reproducción con sounddevice.
+        """
+        try:
+            client = self._get_gemini_client()
+        except RuntimeError as e:
+            print(f"[Gemini TTS] Error: {e}", file=sys.stderr)
+            return
+
+        try:
+            response = client.models.generate_content(
+                model=self.gemini_tts_model,
+                contents=text,
+                config=genai_types.GenerateContentConfig(
+                    response_modalities=["AUDIO"],
+                    speech_config=genai_types.SpeechConfig(
+                        voice_config=genai_types.VoiceConfig(
+                            prebuilt_voice_config=genai_types.PrebuiltVoiceConfig(
+                                voice_name=self.gemini_tts_voice
+                            )
+                        )
+                    ),
+                ),
+            )
+
+            if self.tts_stop_event.is_set():
+                return
+
+            # Extraer PCM crudo de la respuesta
+            for part in response.candidates[0].content.parts:
+                if self.tts_stop_event.is_set():
+                    break
+                if part.inline_data and part.inline_data.data:
+                    pcm_data = part.inline_data.data
+                    # Gemini TTS: 24kHz, 16-bit, mono PCM
+                    audio_np = np.frombuffer(pcm_data, dtype=np.int16)
+                    self.play_queue.put((audio_np, 24000))
+
+        except Exception as e:
+            import traceback
+            print(f"ERROR EN TTS WORKER (Gemini TTS): {e}", file=sys.stderr)
+            traceback.print_exc(file=sys.stderr)
 
     # ── TTS (Piper) ──────────────────────────────────────────────────────────
 
@@ -298,6 +385,9 @@ class VoiceManager:
                 if self.tts_provider == "fish":
                     if not self.tts_stop_event.is_set():
                         self._synthesize_fish(text)
+                elif self.tts_provider == "gemini":
+                    if not self.tts_stop_event.is_set():
+                        self._synthesize_gemini(text)
                 else:
                     # Piper (comportamiento original)
                     self._ensure_piper_model()

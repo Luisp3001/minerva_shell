@@ -28,11 +28,13 @@ Item {
     property string aiNumCtx: "8192"
     property bool   aiThinking: false
 
-    // ── Configuración de TTS ──────────────────────────────────────────────
-    property string ttsProvider:  "piper"   // "piper" (local) | "fish" (Fish Audio API)
+    // ── Configuración de TTS ──────────────────────────────────────────────────────
+    property string ttsProvider:  "piper"   // "piper" (local) | "fish" (Fish Audio API) | "gemini" (Gemini TTS)
     property string fishApiKey:   ""
     property string fishVoiceId:  "15e8b140868348538ab2d7d887060e78"
     property string fishModel:    "s2-pro"  // speech-1.5 | speech-1.6 | s2-pro | s1 | s1-mini | agent-x0
+    property string geminiTtsVoice: "Kore"                 // Kore, Aoede, Puck, Charon, Zephyr, etc.
+    property string geminiTtsModel: "gemini-2.5-flash-tts"  // gemini-2.5-flash-tts | gemini-2.5-pro-tts
 
     property var settingsConfig: [
         { id: "aiProvider",  name: "Proveedor de IA (Ollama / Gemini)",   type: "string", defaultValue: "Ollama" },
@@ -42,10 +44,12 @@ Item {
         { id: "aiTemperature", name: "Temperatura (0.0 - 1.0)",          type: "string", defaultValue: "0.7" },
         { id: "aiNumCtx",    name: "Contexto (num_ctx)",                  type: "string", defaultValue: "8192" },
         { id: "aiThinking",  name: "Activar razonamiento (Thinking)",     type: "bool",   defaultValue: false },
-        { id: "ttsProvider", name: "Proveedor TTS (piper / fish)",        type: "string", defaultValue: "piper" },
+        { id: "ttsProvider", name: "Proveedor TTS (piper / fish / gemini)",   type: "string", defaultValue: "piper" },
         { id: "fishApiKey",  name: "API Key de Fish Audio",               type: "string", defaultValue: "" },
         { id: "fishVoiceId", name: "Voice ID de Fish Audio (reference_id)", type: "string", defaultValue: "15e8b140868348538ab2d7d887060e78" },
-        { id: "fishModel",   name: "Modelo Fish Audio (speech-1.5 / speech-1.6 / s2-pro / s1 / s1-mini / agent-x0)", type: "string", defaultValue: "s2-pro" }
+        { id: "fishModel",   name: "Modelo Fish Audio (speech-1.5 / speech-1.6 / s2-pro / s1 / s1-mini / agent-x0)", type: "string", defaultValue: "s2-pro" },
+        { id: "geminiTtsVoice", name: "Voz de Gemini TTS (Kore / Aoede / Puck / Charon / Zephyr...)", type: "string", defaultValue: "Kore" },
+        { id: "geminiTtsModel", name: "Modelo Gemini TTS (gemini-2.5-flash-tts / gemini-2.5-pro-tts)", type: "string", defaultValue: "gemini-2.5-flash-tts" }
     ]
 
     Component.onCompleted: {
@@ -61,6 +65,8 @@ Item {
             fishApiKey    = parent.getSetting(pluginId, "fishApiKey",    "")
             fishVoiceId   = parent.getSetting(pluginId, "fishVoiceId",   "15e8b140868348538ab2d7d887060e78")
             fishModel     = parent.getSetting(pluginId, "fishModel",     "s2-pro")
+            geminiTtsVoice = parent.getSetting(pluginId, "geminiTtsVoice", "Kore")
+            geminiTtsModel = parent.getSetting(pluginId, "geminiTtsModel", "gemini-2.5-flash-tts")
         }
     }
 
@@ -79,6 +85,8 @@ Item {
                 else if (key === "fishApiKey")    widget.fishApiKey    = value
                 else if (key === "fishVoiceId")   widget.fishVoiceId   = value
                 else if (key === "fishModel")     widget.fishModel     = value
+                else if (key === "geminiTtsVoice") widget.geminiTtsVoice = value
+                else if (key === "geminiTtsModel") widget.geminiTtsModel = value
             }
         }
     }
@@ -384,10 +392,12 @@ Item {
                 temperature:    widget.aiTemperature,
                 num_ctx:        widget.aiNumCtx,
                 thinking:       widget.aiThinking,
-                tts_provider:   widget.ttsProvider,
-                fish_api_key:   widget.fishApiKey,
-                fish_voice_id:  widget.fishVoiceId,
-                fish_model:     widget.fishModel
+                tts_provider:     widget.ttsProvider,
+                fish_api_key:     widget.fishApiKey,
+                fish_voice_id:    widget.fishVoiceId,
+                fish_model:       widget.fishModel,
+                gemini_tts_voice: widget.geminiTtsVoice,
+                gemini_tts_model: widget.geminiTtsModel
             }
         })
         widget.pendingImage = ""

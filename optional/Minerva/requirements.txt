@@ -1,6 +1,7 @@
 chromadb
 ddgs
 fish-audio-sdk
+google-genai
 markitdown
 numpy
 ollama
