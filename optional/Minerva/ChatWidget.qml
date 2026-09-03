@@ -307,7 +307,7 @@ Item {
     function toolLabel(t, args) {
         if (t === "list_dir") {
             let p = args && args.path ? args.path.split('/').pop() : ""
-            return "󰏗  Listando directorio" + (p ? " " + p + "…" : "…")
+            return "  Listando directorio" + (p ? " " + p + "…" : "…")
         }
         if (t === "read_file" || t === "read_pdf" || t === "read_docx" || t === "read_pptx" || t === "read_excel") {
             let msg = "󰈙  Leyendo archivo"
@@ -320,7 +320,7 @@ Item {
             }
             return msg + "…"
         }
-        if (t === "run_command") return "󰆍  Preparando comando…"
+        if (t === "run_command") return "  Preparando comando…"
         if (t === "web_search") {
             let q = args && args.query ? args.query : ""
             return "󰖟  Buscando en internet" + (q ? ": " + q + "…" : "…")
@@ -329,14 +329,14 @@ Item {
         if (t === "spotify_music") return "󰓇  Controlando Spotify…"
         if (t === "manage_tasks") return "󰃭  Gestionando tareas…"
         if (t === "capture_screen") return "󰹑  Tomando captura de pantalla…"
-        if (t === "write_file") return "󰏚  Escribiendo archivo…"
-        if (t === "replace_lines") return "󰏚  Editando archivo…"
-        if (t === "create_docx" || t === "modify_docx") return "󰏚  Modificando documento…"
+        if (t === "write_file") return "  Escribiendo archivo…"
+        if (t === "replace_lines") return "  Editando archivo…"
+        if (t === "create_docx" || t === "modify_docx") return "  Modificando documento…"
         if (t === "query_document") return "󰈙  Consultando documento…"
-        if (t === "launch_app") return "󰀨  Lanzando aplicación…"
+        if (t === "launch_app") return "  Lanzando aplicación…"
         if (t === "file_info") return "󰋽  Consultando metadatos…"
-        if (t === "generate_image") return "󰹑  Generando imagen…"
-        return "󰏗  Usando herramienta…"
+        if (t === "generate_image") return "  Generando imagen…"
+        return "󱁤  Usando herramienta…"
     }
 
     // ── Helpers de modelo ─────────────────────────────────────────────────
