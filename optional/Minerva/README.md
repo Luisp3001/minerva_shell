@@ -1,6 +1,6 @@
 # Minerva
 
-Minerva es una asistente de inteligencia artificial integrada en el escritorio, construida como un plugin de [Quickshell](https://github.com/quickshell-mirror/quickshell). Combina un frontend en QML (interfaz gráfica nativa Wayland) con un backend en Python que conecta modelos de lenguaje (Ollama local o Gemini en la nube) con herramientas del sistema operativo: ejecución de comandos, sistema de archivos, búsqueda web, control de Spotify, captura de pantalla y memoria persistente a largo plazo.
+Minerva es una asistente de inteligencia artificial integrada en el escritorio, construida como un plugin de [Quickshell](https://github.com/quickshell-mirror/quickshell). Combina un frontend en QML (interfaz gráfica nativa Wayland) con un backend en Python que conecta modelos de lenguaje (Ollama local o Gemini en la nube) con herramientas del sistema operativo: ejecución de comandos asíncronos, sistema de archivos, búsqueda web, generación de imágenes, control de Hyprland, control de Spotify, captura de pantalla, gestión proactiva de tareas y memoria persistente a largo plazo.
 
 El nombre viene de la diosa romana de la sabiduría.
 
@@ -10,16 +10,20 @@ El nombre viene de la diosa romana de la sabiduría.
 
 - **Dual engine:** Ollama (local, offline) y Gemini (API de Google Cloud) con streaming de tokens.
 - **Agentic loop:** La IA puede invocar herramientas de forma iterativa (hasta 6 turnos) para completar tareas complejas.
-- **Ejecución de comandos asíncrona:** Coordinada vía `JobManager` thread-safe con rastreo por `job_id`, turnos multi-comando y streaming de salida en tiempo real — no se congela mientras espera.
-- **Sistema de voz completo:** Wake word ("Minerva"), STT (Whisper), TTS dual (Piper local o Fish Audio en la nube con soporte de **Emotion Tags**) y detección de silencio.
+- **Ejecución de comandos asíncrona:** Coordinada vía `JobManager` thread-safe con rastreo por `job_id`, turnos multi-comando, streaming de salida en tiempo real e inspección de estado con `check_job_status` — no se congela mientras espera.
+- **Sistema de voz completo:** Wake word ("Minerva"), STT (Whisper), TTS triple (**Piper** local, **Fish Audio** en la nube con **Emotion Tags** y **Google Gemini TTS** con ~30 voces) y detección de silencio.
+- **Generación de imágenes:** Integración nativa con Gemini (`gemini-3.1-flash-image`) para generar imágenes a partir de descripciones de texto en resoluciones 1K (previsualizable en el chat) y 2K (guardado directo en disco en `~/Pictures/minerva`).
+- **Control de entorno de escritorio (Hyprland):** Navegación entre workspaces (1-10), reubicación de ventanas entre workspaces por clase o título y listado de ventanas activas vía `hyprctl`.
+- **Herramientas de documentos y RAG Efímero:** Creación de documentos Word (`.docx`) formateados desde Markdown con `pypandoc`, edición quirúrgica de Word con `python-docx` y consulta semántica puntual (`query_document`) en PDF, DOCX y PPTX con `MarkItDown` + `ChromaDB` sin necesidad de leer todo el archivo.
 - **SiriOrb:** Visualización animada por GPU (fragment shader) que reacciona al audio en tiempo real con RMS y 4 bandas FFT.
-- **Memoria a largo plazo:** Archivos Markdown (user_profile.md y preferences.md) para almacenar el perfil del usuario y sus preferencias entre sesiones.
+- **Memoria a largo plazo:** Archivos Markdown (`user_profile.md` y `preferences.md`) para almacenar el perfil del usuario y sus preferencias entre sesiones, actualizables proactivamente con `update_memory`.
 - **Proactividad (Tareas):** Conexión a PostgreSQL para gestionar tareas con alertas visuales sutiles en el SiriOrb. Soporta **tareas recurrentes** (diaria, semanal, mensual, anual con `recurrence_month`) con auto-renovación en segundo plano.
-- **Herramientas de archivos avanzadas:** Lectura inteligente por rangos de líneas (`read_file`), metadatos (`file_info`), creación directa (`write_file`), edición quirúrgica (`replace_lines`) y conversión a Markdown para PDF, Word (.docx), PowerPoint (.pptx) y Excel/CSV (.xlsx/.csv).
+- **Herramientas de archivos avanzadas:** Lectura inteligente por rangos de líneas (`read_file`), metadatos (`file_info`), creación directa (`write_file`), edición quirúrgica (`replace_lines`) y conversión a Markdown para PDF, Word (`.docx`), PowerPoint (`.pptx`) y Excel/CSV (`.xlsx`/`.csv`).
 - **Tool RAG:** Selección inteligente de herramientas relevantes vía embedding semántico para no saturar el contexto.
 - **Seguridad:** Clasificación automática de comandos (safe / destructive / sudo) con confirmación en la UI.
 - **Captura de pantalla:** Visión multimodal — Minerva puede ver tu pantalla y analizarla.
 - **Spotify:** Control completo de reproducción vía OAuth2 (buscar, reproducir, pausar, cola, volumen).
+- **Directorio de configuración unificado:** Centralización de variables de entorno (`.env`), credenciales y tokens de caché en `~/.config/minerva/`.
 
 ---
 
@@ -42,6 +46,7 @@ optional/Minerva/
 │                                #   - Burbujas de usuario e IA con streaming de tokens
 │                                #   - Tarjetas de comando (pending / running / success / error)
 │                                #   - Streaming de salida de comandos en tiempo real
+│                                #   - Previsualización de imágenes generadas por IA
 │                                #   - Diálogo de confirmación para comandos destructivos/sudo
 │                                #   - Input con micrófono, adjuntar imagen, placeholder dinámico
 ├── SiriOrb.qml                  # Orbe animado tipo Siri (GPU ShaderEffect):
@@ -72,13 +77,12 @@ optional/Minerva/
 └── backend/
     ├── __init__.py
     ├── README.md                # Documentación del backend (cómo agregar tools, etc.)
-    ├── .env                     # Variables de entorno (credenciales de DB, etc.)
     │
     ├── core/                    # Lógica central y motores de IA
-    │   ├── config.py            # Constantes globales:
+    │   ├── config.py            # Constantes globales y directorio ~/.config/minerva/:
     │   │                        #   - MODEL, HOME, MAX_FILE, MAX_DIR
-    │   │                        #   - Paths de Spotify, voz
-    │   │                        #   - Flags de disponibilidad (VOICE_AVAILABLE, FISH_AUDIO_AVAILABLE, etc.)
+    │   │                        #   - Paths de Spotify, voz y .env unificado
+    │   │                        #   - Flags de disponibilidad (VOICE_AVAILABLE, FISH_AUDIO_AVAILABLE, GEMINI_TTS_AVAILABLE, etc.)
     │   ├── io.py                # Comunicación con QML:
     │   │                        #   - emit() / emit_error() → JSON Lines a stdout
     │   │                        #   - is_safe_path() → verificación $HOME
@@ -89,11 +93,12 @@ optional/Minerva/
     │   ├── ollama_engine.py     # Engine de chat con Ollama (API REST local):
     │   │                        #   - Streaming de tokens, tool calls nativas, thinking mode
     │   │                        #   - Agentic loop con re-invocación iterativa coordinada por turnos
-    │   ├── gemini_engine.py     # Engine de chat con Gemini (API OpenAI-compatible):
+    │   ├── gemini_engine.py     # Engine de chat con Gemini (API OpenAI-compatible / GenAI):
     │   │                        #   - SSE streaming, tool calls incrementales (delta chunks)
     │   │                        #   - Soporte multimodal (imágenes en base64) y desconcatenación de calls
     │   ├── voice.py             # VoiceManager (singleton voice_mgr):
-    │   │                        #   - TTS: Piper (local ONNX) o Fish Audio API (nube) con Emotion Tags
+    │   │                        #   - TTS triple: Piper (local ONNX), Fish Audio (nube con Emotion Tags)
+    │   │                        #     o Google Gemini TTS (~30 voces neurales)
     │   │                        #   - STT: Whisper (pywhispercpp)
     │   │                        #   - Wake word: Vosk con stream de audio continuo
     │   │                        #   - StreamEmotionStripper para limpiar tags en tiempo real
@@ -101,18 +106,12 @@ optional/Minerva/
     │   │                        #   - Suavizado exponencial
     │   │                        #   - Ventana Hann para reducir spectral leakage
     │   │                        #   - Alimenta los uniforms del shader SiriOrb
-    │   ├── memory.py            # Lectura de archivos Markdown (user_profile.md / preferences.md)
+    │   ├── memory.py            # Lectura y actualización de archivos Markdown (user_profile.md / preferences.md)
     │   │                        #   - get_memory_context() para inyección en el system prompt
+    │   │                        #   - update_memory_section() para guardado quirúrgico de secciones
     │   └── tasks_db.py          # Conexión a PostgreSQL (CRUD de tareas + recurrencia):
-    │                            #   - init_db(): crea tabla y agrega columnas recurrence/recurrence_day/recurrence_month
-    │                            #   - add_task(): inserta tarea; si es recurrente y no tiene due_date,
-    │                            #     calcula automáticamente la primera ocurrencia futura
-    │                            #   - complete_task(): marca como completada
-    │                            #   - get_pending_tasks(): retorna pendientes con due_date y recurrencia
-    │                            #   - renew_recurring_tasks(): renueva tareas vencidas actualizando
-    │                            #     due_date a la próxima ocurrencia (UPDATE in-place, no INSERT)
-    │                            #   - _next_due_date(): calcula siguiente ocurrencia (daily/weekly/monthly/yearly)
-    │                            #   - _initial_due_date(): calcula primera ocurrencia para tareas nuevas
+    │                            #   - init_db(): crea tabla y columnas de recurrencia
+    │                            #   - renew_recurring_tasks(): renueva tareas vencidas en segundo plano
     │
     └── tools/                   # Herramientas que la IA puede invocar
         ├── __init__.py          # Exporta dispatch_tool() (despachador centralizado),
@@ -120,13 +119,15 @@ optional/Minerva/
         ├── definitions.py       # SYSTEM_PROMPT (personalidad, reglas, contexto, FISH_AUDIO_EMOTION_PROMPT)
         │                        # OLLAMA_TOOLS (esquemas JSON de todas las herramientas)
         ├── filesystem.py        # list_dir, file_info, read_file, write_file, replace_lines,
-        │                        # read_pdf, read_docx, read_pptx, read_excel (vía MarkItDown)
-        ├── system.py            # web_search (DuckDuckGo), launch_app (busca .desktop)
+        │                        # read_pdf, read_docx, read_pptx, read_excel (vía MarkItDown),
+        │                        # create_docx, modify_docx, query_document (RAG efímero)
+        ├── system.py            # web_search (DuckDuckGo), launch_app (busca .desktop),
+        │                        # hyprland_control (workspaces/ventanas), check_job_status
+        ├── imagen.py            # tool_generate_image: Gemini 3.1 Flash Image (1K/2K) en ~/Pictures/minerva
         ├── spotify.py           # spotify_music: OAuth2 completo, control de reproducción
-        ├── screen.py            # capture_screen: grim → base64 → multimodal
-        ├── memory_tool.py       # memorize_fact: guarda hechos en ChromaDB
-        └── tasks.py             # manage_tasks: Gestiona tareas en archivos markdown ordenados
-                                 #   - Acciones: add, complete, list
+        ├── screen.py            # capture_screen: grim → base64 → visión multimodal
+        ├── memory_tool.py       # update_memory: modifica secciones en user_profile.md y preferences.md
+        └── tasks.py             # manage_tasks: Gestiona tareas en PostgreSQL (add, complete, list)
                                  #   - Soporte de recurrence ('daily','weekly','monthly','yearly'),
                                  #     recurrence_day y recurrence_month
 ```
@@ -196,7 +197,7 @@ El frontend y el backend se comunican mediante dos canales distintos:
 Usuario escribe → QML envía POST {"type":"chat"} → main.py recibe
     │
     ├── Inyecta fecha al SYSTEM_PROMPT
-    ├── Consulta ChromaDB por memorias relevantes → las agrega al prompt
+    ├── Inyecta memoria (user_profile.md y preferences.md) al prompt
     ├── Inyecta tareas pendientes proactivamente (si aplican)
     ├── Construye historial [system, ...history, user]
     │
@@ -231,9 +232,10 @@ Minerva tiene un pipeline de voz completo con tres subsistemas independientes:
 
 **STT (Speech-to-Text):** Al activar la grabación (botón de micrófono o wake word), el audio del micrófono se acumula en un búfer. Cuando se detiene la grabación (manual o por detección de silencio), el audio se transcribe con Whisper (pywhispercpp, modelo small) y el texto resultante se envía como si el usuario lo hubiera escrito.
 
-**TTS (Text-to-Speech):** Motor dual configurable desde la UI:
+**TTS (Text-to-Speech):** Motor triple configurable desde la UI:
 - **Piper (local ONNX):** Síntesis offline rápida con modelo ONNX en español (`es_MX-claude-high`).
 - **Fish Audio (API en la nube):** Síntesis neural de alta calidad con soporte de **Emotion Tags** (`[happy]`, `[sad]`, `[excited]`, `[confident]`, `[neutral]`, etc.). Un procesador en streaming (`StreamEmotionStripper`) limpia los tags en tiempo real antes de emitir los tokens a la UI, asegurando que la voz exprese entonación sin mostrar símbolos en el chat.
+- **Google Gemini TTS (API en la nube):** Síntesis neural multilingüe con la API oficial de Google (`google-genai`). Admite modelos `gemini-2.5-flash-tts` y `gemini-2.5-pro-tts` con ~30 voces preconstruidas (ej: `Kore`, `Aoede`, `Puck`, `Charon`, `Zephyr`, etc.) convertidas directamente a audio PCM 24kHz.
 
 Durante la reproducción de cualquier motor, un `AudioAnalyzer` calcula métricas (RMS + FFT) que se envían al frontend para animar el SiriOrb en sincronía con la voz.
 
@@ -252,53 +254,40 @@ Durante la reproducción de cualquier motor, un `AudioAnalyzer` calcula métrica
 | `read_docx`       | `tools/filesystem.py`  | Extrae contenido de un archivo Word (.docx) a Markdown           |
 | `read_pptx`       | `tools/filesystem.py`  | Extrae texto de presentaciones PowerPoint (.pptx) a Markdown     |
 | `read_excel`      | `tools/filesystem.py`  | Extrae contenido de hojas Excel (.xlsx) y CSV a Markdown         |
+| `create_docx`     | `tools/filesystem.py`  | Crea un archivo Word (.docx) formateado desde Markdown (pypandoc)|
+| `modify_docx`     | `tools/filesystem.py`  | Añade párrafos de texto al final de un archivo Word (.docx)      |
+| `query_document`  | `tools/filesystem.py`  | Búsqueda semántica (RAG efímero) en PDF, DOCX, PPTX con ChromaDB |
 | `run_command`     | `tools/__init__.py`    | Ejecuta un comando bash (asíncrono, rastreado por `job_id`)      |
+| `check_job_status`| `tools/system.py`      | Consulta el estado y salida de comandos en segundo plano         |
 | `web_search`      | `tools/system.py`      | Busca en internet via DuckDuckGo (ddgs)                          |
 | `launch_app`      | `tools/system.py`      | Busca y abre una app gráfica por nombre o sinónimo               |
+| `hyprland_control`| `tools/system.py`      | Controla workspaces y mueve ventanas en Hyprland vía `hyprctl`   |
+| `generate_image`  | `tools/imagen.py`      | Genera imágenes con Gemini 3.1 Flash Image (1K/2K) en ~/Pictures |
 | `spotify_music`   | `tools/spotify.py`     | Control de Spotify (play, pause, search, queue, volume, etc.)    |
 | `capture_screen`  | `tools/screen.py`      | Captura la pantalla con grim → base64 → visión multimodal       |
-| `memorize_fact`   | `tools/memory_tool.py` | Guarda un hecho en la memoria permanente (ChromaDB)              |
+| `update_memory`   | `tools/memory_tool.py` | Modifica quirúrgicamente `user_profile.md` o `preferences.md`    |
 | `manage_tasks`    | `tools/tasks.py`       | Gestiona tareas en PostgreSQL (`add`, `complete`, `list`) con soporte de recurrencia (`recurrence`, `recurrence_day`, `recurrence_month`) |
 
 ---
 
 ## Proactividad y Tareas (PostgreSQL)
 
-Minerva puede gestionar tus pendientes usando una base de datos PostgreSQL remota o local (configurada en `backend/.env`). Esto le permite funcionar como un asistente proactivo real:
+Minerva puede gestionar tus pendientes usando una base de datos PostgreSQL remota o local (configurada en `~/.config/minerva/.env`). Esto le permite funcionar como un asistente proactivo real:
 
 1. **Inyección de Contexto**: Al chatear, Minerva lee tus tareas pendientes y las inyecta en su `SYSTEM_PROMPT` para conocerlas y recordártelas de forma natural.
-2. **Worker en Segundo Plano**: Un hilo en `main.py` sondea la BD cada 3 minutos. Antes de consultar pendientes, llama a `renew_recurring_tasks()` para renovar automáticamente cualquier tarea recurrente vencida.
+2. **Worker en Segundo Plano**: Un hilo en `main.py` sondea la BD cada 10 minutos. Antes de consultar pendientes, llama a `renew_recurring_tasks()` para renovar automáticamente cualquier tarea recurrente vencida.
 3. **Indicador Visual Silencioso**: QML captura el evento y muestra el SiriOrb en el centro de tu pantalla por 20 segundos y deja un aviso en el widget. El orbe reacciona visualmente según el nivel de urgencia máximo con tinte de color en GPU y una animación de respiración/pulso: **Verde esmeralda** (baja urgencia, > 3 días), **Amarillo/Ámbar** (media urgencia, 1 a 3 días) o **Rojo vibrante parpadeante** (alta urgencia / vencida, < 24 horas).
-4. **Herramienta IA**: Minerva tiene la tool `manage_tasks` para añadir nuevas tareas, ponerles fecha de vencimiento (`due_date`) o marcarlas como completadas. `manage_tasks` está **siempre disponible** en el Tool RAG (se inyecta aunque el embedding semántico no la seleccione) para garantizar que la IA la use ante cualquier pregunta sobre fechas o cobros.
+4. **Herramienta IA**: Minerva tiene la tool `manage_tasks` para añadir nuevas tareas, ponerles fecha de vencimiento (`due_date`) o marcarlas como completadas. `manage_tasks` está **siempre disponible** en el Tool RAG para garantizar que la IA la use ante cualquier pregunta sobre fechas o cobros.
 
 ### Tareas recurrentes
 
-Las tareas pueden repetirse automáticamente configurando dos campos adicionales:
+Las tareas pueden repetirse automáticamente configurando campos adicionales:
 
 | Campo            | Tipo        | Descripción                                                                                  |
 |------------------|-------------|----------------------------------------------------------------------------------------------|
 | `recurrence`     | `VARCHAR(10)` | Frecuencia: `'daily'`, `'weekly'`, `'monthly'`, `'yearly'`. `NULL` = tarea única.          |
 | `recurrence_day` | `INTEGER`   | Día de anclaje. Para `monthly`/`yearly`: día del mes (1-31). Para `weekly`: día de semana (0=lun…6=dom). |
 | `recurrence_month` | `INTEGER` | Mes de anclaje (1-12). Solo usado para recurrencia `'yearly'` (ej. cumpleaños). |
-
-**Flujo de renovación:** El worker llama a `renew_recurring_tasks()` cada 3 minutos. Si una tarea recurrente tiene `due_date < NOW()`, se calcula la próxima ocurrencia con `_next_due_date()` y se hace un `UPDATE` in-place (`due_date = próxima, status = 'pending'`). Si el backend estuvo apagado varios ciclos, avanza en bucle hasta quedar en el futuro. No se crean filas nuevas: el historial no crece.
-
-**Primera ocurrencia:** Si se agrega una tarea recurrente sin `due_date` explícito, `add_task()` llama a `_initial_due_date()` para calcular la próxima ocurrencia futura antes de insertar. Ejemplo: si hoy es el 23 de julio y `recurrence='monthly', recurrence_day=11`, el `due_date` se fija automáticamente al `2026-08-11 08:00:00`.
-
-**Esquema de la tabla `minerva_tasks`:**
-
-```sql
-CREATE TABLE minerva_tasks (
-    id             SERIAL PRIMARY KEY,
-    description    TEXT          NOT NULL,
-    status         VARCHAR(20)   DEFAULT 'pending',  -- 'pending' | 'completed'
-    due_date       TIMESTAMP     NULL,
-    created_at       TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
-    recurrence       VARCHAR(10)   NULL,               -- 'daily' | 'weekly' | 'monthly' | 'yearly'
-    recurrence_day   INTEGER       NULL,               -- día de anclaje según recurrence
-    recurrence_month INTEGER       NULL                -- mes de anclaje (para yearly)
-);
-```
 
 ---
 
@@ -318,13 +307,15 @@ Cada comando emitido se registra en el singleton **`JobManager`** (`job_mgr`) co
 
 ## Memoria y RAG
 
-Minerva usa ChromaDB para dos propósitos:
+Minerva usa almacenamiento estructurado y ChromaDB para dos propósitos:
 
-1. **Memoria a largo plazo** (colección `minerva_memory`): Almacena hechos, preferencias y contexto del usuario. Al inicio de cada chat, se consultan las memorias más relevantes semánticamente y se inyectan en el system prompt. La IA guarda nuevas memorias de forma proactiva cuando detecta información personal relevante.
+1. **Memoria a largo plazo** (`user_profile.md` y `preferences.md`): Almacena hechos, datos personales y preferencias del usuario. Al inicio de cada chat, se inyectan en el system prompt. La IA usa `update_memory` para guardar o actualizar secciones proactivamente.
 
-2. **Tool RAG** (colección `minerva_tools`): Evita enviar las 10+ definiciones de herramientas en cada request. En su lugar, usa embeddings para seleccionar las herramientas más relevantes al mensaje del usuario (top-k configurable). `manage_tasks` se inyecta siempre en el resultado, independientemente del score semántico, para evitar que la IA use `run_command` para responder preguntas sobre tareas.
+2. **Tool RAG** (colección efímera `minerva_tools`): Evita enviar todas las definiciones de herramientas en cada request. Usa embeddings para seleccionar las herramientas más relevantes al mensaje del usuario (top-k configurable). Herramientas críticas como `manage_tasks`, `run_command` y de lectura/edición de documentos se inyectan siempre en el resultado.
 
-Base de datos persistida en: `~/.local/share/quickshell/minerva_tools/`
+3. **RAG Efímero de Documentos** (`query_document`): Permite consultar información puntual en PDF, DOCX y PPTX dividiendo el texto en chunks y creando una colección ChromaDB temporal en memoria.
+
+Directorio de configuración e historias: `~/.config/minerva/`
 
 ---
 
@@ -337,8 +328,11 @@ El backend detecta automáticamente qué dependencias están instaladas y desact
 | `VOICE_AVAILABLE`        | sounddevice, soundfile, pywhispercpp     | Grabación y transcripción (STT) |
 | `VOSK_AVAILABLE`         | vosk                                     | Wake word ("Minerva")     |
 | `FISH_AUDIO_AVAILABLE`   | fish_audio_sdk                           | TTS en la nube con Emotion Tags |
+| `GEMINI_TTS_AVAILABLE`   | google-genai                             | TTS en la nube con Google Gemini (~30 voces) |
 | `WEB_SEARCH_AVAILABLE`   | ddgs                                     | Búsqueda web              |
-| `CHROMADB_AVAILABLE`     | chromadb                                 | Memoria y Tool RAG        |
+| `CHROMADB_AVAILABLE`     | chromadb                                 | RAG efímero y Tool RAG    |
+| *(Google GenAI)*         | google-genai                             | Generación de imágenes (`generate_image`) y Gemini TTS |
+| *(Documentos Word)*      | pypandoc + pandoc (sistema), python-docx | Creación (`create_docx`) y edición (`modify_docx`) de Word |
 | *(MarkItDown opcional)*  | markitdown                               | Extracción de texto de PDF, DOCX, PPTX y Excel/CSV |
 
 Piper TTS se carga bajo demanda (lazy-load) al primer uso de voz local.
@@ -347,18 +341,20 @@ Piper TTS se carga bajo demanda (lazy-load) al primer uso de voz local.
 
 ## Configuración
 
-Los ajustes de la IA y la voz se gestionan desde la UI de Quickshell y se pasan al backend en cada petición de chat:
+Los ajustes de la IA, voz e imágenes se gestionan desde la UI de Quickshell y se pasan al backend en cada petición de chat (con variables persistidas en `~/.config/minerva/.env`):
 
 | Ajuste            | Propiedad QML   | Descripción                                     |
 |-------------------|-----------------|--------------------------------------------------|
 | Proveedor IA      | `aiProvider`    | `"Ollama"` o `"Gemini"`                          |
-| API Key Gemini    | `geminiApiKey`  | Clave de API para Google Generative AI           |
+| API Key Gemini    | `geminiApiKey`  | Clave de API para Google Generative AI (Chat, Visión, Imágenes y TTS) |
 | Modelo Gemini     | `geminiModel`   | Ej: `gemini-2.5-flash`                           |
 | Modelo Ollama     | `aiModel`       | Ej: `qwen3.5:9b` o `gemma4:e4b`                  |
 | Temperatura       | `aiTemperature` | Creatividad del modelo (0.0 – 1.0)              |
 | Contexto          | `aiNumCtx`      | Ventana de contexto para Ollama (tokens)         |
 | Thinking          | `aiThinking`    | Activar razonamiento extendido (Ollama)          |
-| Proveedor TTS     | `ttsProvider`   | `"piper"` (local) o `"fish"` (Fish Audio API)    |
+| Proveedor TTS     | `ttsProvider`   | `"piper"` (local), `"fish"` (Fish Audio) o `"gemini"` (Google Gemini TTS) |
+| Voz Gemini TTS    | `geminiTtsVoice`| Voz preconstruida de Google (ej: `Kore`, `Aoede`, `Puck`, `Charon`) |
+| Modelo Gemini TTS | `geminiTtsModel`| Modelo de TTS (ej: `gemini-2.5-flash-tts`, `gemini-2.5-pro-tts`) |
 | API Key Fish      | `fishApiKey`    | API Key de Fish Audio                            |
 | Voice ID Fish     | `fishVoiceId`   | ID de voz de referencia en Fish Audio            |
-| Modelo Fish       | `fishModel`     | Ej: `s2-pro`, `speech-1.5`, `speech-1.6`, etc.   |
+| Modelo Fish       | `fishModel`     | Ej: `s2-pro`, `speech-1.6`, etc.                 |
